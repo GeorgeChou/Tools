@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Chart</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  #tv { height: 100%; width: 100%; }
+</style>
+</head>
+<body>
+<!--
+  Stock chart for embedding (e.g. in Notion via /embed).
+  URL parameters:
+    symbol  TradingView symbol, EXCHANGE:TICKER   (default NASDAQ:AAPL)
+    range   tab opened first: 1d 1m 3m 1y 5y all  (default 1y)
+    theme   light or dark                         (default light)
+  Example: ?symbol=NASDAQ:NVDA&range=3m&theme=dark
+-->
+<div class="tradingview-widget-container" id="tv">
+  <div class="tradingview-widget-container__widget"></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const symbol = (q.get("symbol") || "NASDAQ:AAPL").toUpperCase();
+  const theme = q.get("theme") === "dark" ? "dark" : "light";
+  const ranges = { "1d": "1d|1", "1m": "1m|30", "3m": "3m|60", "1y": "12m|1D", "5y": "60m|1W", "all": "all|1M" };
+  const first = ranges[(q.get("range") || "1y").toLowerCase()] || ranges["1y"];
+  // The widget opens on the first range in the list, so put the requested one first.
+  const dateRanges = [first, ...Object.values(ranges).filter(r => r !== first)];
+
+  document.title = symbol;
+  document.body.style.background = theme === "dark" ? "#131722" : "#ffffff";
+
+  const s = document.createElement("script");
+  s.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
+  s.async = true;
+  s.innerHTML = JSON.stringify({
+    symbols: [[symbol, symbol + "|" + first.split("|")[0].toUpperCase()]],
+    dateRanges: dateRanges,
+    chartOnly: false,
+    chartType: "area",
+    colorTheme: theme,
+    locale: "en",
+    autosize: true,
+    width: "100%",
+    height: "100%",
+    showVolume: false,
+    scalePosition: "right",
+    scaleMode: "Normal",
+    valuesTracking: "1",
+    changeMode: "price-and-percent"
+  });
+  document.getElementById("tv").appendChild(s);
+</script>
+</body>
+</html>
