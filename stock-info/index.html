@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Info</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  #tv { height: 100%; width: 100%; }
+</style>
+</head>
+<body>
+<!--
+  Stock Info for embedding (e.g. in Notion via /embed).
+  URL parameters:
+    symbol  TradingView symbol, EXCHANGE:TICKER   (default NASDAQ:AAPL)
+    theme   light or dark                         (default light)
+  Example: ?symbol=NASDAQ:NVDA&theme=dark
+-->
+<div class="tradingview-widget-container" id="tv">
+  <div class="tradingview-widget-container__widget"></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const symbol = (q.get("symbol") || "NASDAQ:AAPL").toUpperCase();
+  const theme = q.get("theme") === "dark" ? "dark" : "light";
+
+  document.title = symbol;
+  document.body.style.background = theme === "dark" ? "#131722" : "#ffffff";
+
+  const s = document.createElement("script");
+  s.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js";
+  s.async = true;
+  s.innerHTML = JSON.stringify({
+    symbol: symbol,
+    colorTheme: theme,
+    isTransparent: false,
+    locale: "en",
+    width: "100%"
+  });
+  document.getElementById("tv").appendChild(s);
+</script>
+</body>
+</html>
