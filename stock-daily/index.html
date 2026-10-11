@@ -157,7 +157,7 @@
   // Symbols are file names, so allow only what a ticker can contain.
   if (!/^[A-Z0-9.\-^=]{1,15}$/.test(symbol)) { fail("Unknown symbol."); return; }
 
-  fetch("data/" + encodeURIComponent(symbol.replace("^", "_")) + ".json", { cache: "no-cache" })
+  fetch("data/" + encodeURIComponent(symbol.replace("^", "idx-")) + ".json", { cache: "no-cache" })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (d) {
       data = d;

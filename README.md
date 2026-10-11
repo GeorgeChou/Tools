@@ -53,7 +53,7 @@ How it works:
   For companies it also saves a fundamentals snapshot (valuation ratios, margins, debt,
   analyst rating and average target), and it writes `stock-daily/data/fx.json` with
   exchange rates to the US dollar. An index such as `^SOX` is marked `"kind": "index"`
-  in `symbols.json` and saved as `_SOX.json`.
+  in `symbols.json` and saved as `idx-SOX.json`.
 - `.github/workflows/stock-daily.yml` runs that script on weekdays at 07:40 and 21:40 UTC,
   and whenever `symbols.json` changes, then commits the refreshed files. GitHub Pages
   republishes on each commit.

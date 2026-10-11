@@ -145,8 +145,9 @@ def main():
     sess = session()
     failed, currencies = [], set()
     for entry in entries:
-        # "^SOX" is saved as "_SOX.json": a caret is awkward in a web address.
-        path = DATA / (entry["symbol"].replace("^", "_") + ".json")
+        # "^SOX" is saved as "idx-SOX.json": a caret is awkward in a web address, and
+        # GitHub Pages does not serve files whose names start with an underscore.
+        path = DATA / (entry["symbol"].replace("^", "idx-") + ".json")
         previous = read_json(path)
         try:
             out = fetch(entry, sess, previous)
