@@ -105,6 +105,12 @@ def fetch(entry, sess, previous):
     try:
         info = ticker.info or {}
         found = {ours: clean(info.get(theirs)) for theirs, ours in FUNDAMENTALS.items()}
+        # Yahoo sometimes mixes currencies or share counts and returns absurd multiples
+        # (ASML's EV/EBITDA came back as 2,816x). Blank anything outside a plausible range.
+        for key in ("peTrailing", "peForward", "evToEbitda", "priceToSales", "priceToBook"):
+            value = found.get(key)
+            if isinstance(value, float) and not 0 < value < 1000:
+                found[key] = None
         if sum(v is not None for v in found.values()) >= 5:
             out["fundamentals"] = found
             out["fundamentalsUpdated"] = now()

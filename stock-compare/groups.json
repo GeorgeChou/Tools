@@ -119,6 +119,268 @@
         "semiShare": "Pure wafer maker",
         "nextResults": "2026-11-11"
       }
-    ]
+    ],
+    "detailLabel": "Semiconductor share of profit",
+    "fundamentalsNote": "Diversified groups (Shin-Etsu, Ajinomoto, Resonac) show whole-company figures, not their semiconductor units."
+  },
+  "layer2-equipment": {
+    "title": "AI hardware Layer 2: chip-making equipment",
+    "benchmark": "^SOX",
+    "benchmarkLabel": "SOX index",
+    "snapshotDate": "2026-10-12",
+    "snapshotSource": "Layer 2 deep-dive note",
+    "detailLabel": "Main AI exposure",
+    "members": [
+      {
+        "symbol": "ASML",
+        "short": "ASML",
+        "tier": "Top 5",
+        "rank": 1,
+        "scores": {
+          "ai": 5,
+          "moat": 5,
+          "momentum": 5,
+          "balance": 5,
+          "valuation": 3
+        },
+        "pricingPower": "Strongest: sole supplier of EUV scanners",
+        "semiShare": "EUV and High-NA for 2nm logic and HBM-class DRAM",
+        "nextResults": "2026-10-14",
+        "exclude": [
+          "priceToSales"
+        ]
+      },
+      {
+        "symbol": "KLAC",
+        "short": "KLA",
+        "tier": "Top 5",
+        "rank": 2,
+        "scores": {
+          "ai": 4,
+          "moat": 5,
+          "momentum": 3,
+          "balance": 4,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: about 60% of process control, lead times near 12 months",
+        "semiShare": "Inspection for 2nm, HBM and advanced packaging",
+        "nextResults": "2026-10-28"
+      },
+      {
+        "symbol": "LRCX",
+        "short": "Lam Research",
+        "tier": "Top 5",
+        "rank": 3,
+        "scores": {
+          "ai": 4,
+          "moat": 4,
+          "momentum": 5,
+          "balance": 4,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: over 30% of its served market, 37% of sales from the installed base",
+        "semiShare": "Etch and deposition for NAND, DRAM/HBM, gate-all-around",
+        "nextResults": "2026-10-21"
+      },
+      {
+        "symbol": "8035.T",
+        "short": "Tokyo Electron",
+        "tier": "Top 5",
+        "rank": 4,
+        "scores": {
+          "ai": 4,
+          "moat": 4,
+          "momentum": 4,
+          "balance": 5,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: 91% of coater/developers; price rises from 2H FY2027",
+        "semiShare": "Coater/developer, etch, wafer bonding for HBM",
+        "nextResults": "2026-10-30",
+        "exclude": [
+          "peForward",
+          "priceToBook"
+        ]
+      },
+      {
+        "symbol": "AMAT",
+        "short": "Applied Materials",
+        "tier": "Top 5",
+        "rank": 5,
+        "scores": {
+          "ai": 4,
+          "moat": 3,
+          "momentum": 4,
+          "balance": 4,
+          "valuation": 3
+        },
+        "pricingPower": "Moderate: broadest product range, no single monopoly",
+        "semiShare": "Gate-all-around, DRAM/HBM, advanced packaging",
+        "nextResults": ""
+      },
+      {
+        "symbol": "6146.T",
+        "short": "Disco",
+        "tier": "Added",
+        "rank": 6,
+        "scores": {
+          "ai": 5,
+          "moat": 5,
+          "momentum": 4,
+          "balance": 5,
+          "valuation": 2
+        },
+        "pricingPower": "Strong: 70-80% of dicing saws and grinders",
+        "semiShare": "Thinning and dicing for HBM and advanced packaging",
+        "nextResults": "2026-10-22"
+      },
+      {
+        "symbol": "6920.T",
+        "short": "Lasertec",
+        "tier": "Added",
+        "rank": 7,
+        "scores": {
+          "ai": 4,
+          "moat": 5,
+          "momentum": 2,
+          "balance": 5,
+          "valuation": 2
+        },
+        "pricingPower": "Strongest in its niche: sole maker of EUV-light mask inspection",
+        "semiShare": "EUV mask and mask-blank inspection",
+        "nextResults": "2026-10-30"
+      }
+    ],
+    "fundamentalsNote": "Some Yahoo figures are left blank because they are wrong: ASML's price/sales and EV/EBITDA mix US dollars with euros, and Tokyo Electron's forward P/E and price/book have not caught up with its 5-for-1 share split on Oct 1, 2026. ASML trades in US$ here but reports in euros."
+  },
+  "layer2-taiwan-equipment": {
+    "title": "AI hardware Layer 2: Taiwan packaging tools and fab build",
+    "benchmark": "^SOX",
+    "benchmarkLabel": "SOX index",
+    "snapshotDate": "2026-10-12",
+    "snapshotSource": "Layer 2 deep-dive note",
+    "detailLabel": "Main AI exposure",
+    "members": [
+      {
+        "symbol": "3131.TWO",
+        "short": "Grand Process 弘塑",
+        "tier": "Taiwan",
+        "rank": 1,
+        "scores": {
+          "ai": 5,
+          "moat": 4,
+          "momentum": 3,
+          "balance": 4,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: about half of TSMC's CoWoS wet-clean tools, sole SoIC cleaning supplier",
+        "semiShare": "Wet-process tools for CoWoS and SoIC",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "6187.TWO",
+        "short": "All Ring 萬潤",
+        "tier": "Taiwan",
+        "rank": 2,
+        "scores": {
+          "ai": 5,
+          "moat": 4,
+          "momentum": 5,
+          "balance": 5,
+          "valuation": 2
+        },
+        "pricingPower": "Moderate to strong: leading share in CoWoS dispensing (no figure)",
+        "semiShare": "Dispensing and inspection for CoWoS; CPO tools",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "3680.TWO",
+        "short": "Gudeng 家登",
+        "tier": "Taiwan",
+        "rank": 3,
+        "scores": {
+          "ai": 4,
+          "moat": 5,
+          "momentum": 4,
+          "balance": 2,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: leading maker of EUV reticle pods",
+        "semiShare": "EUV and High-NA reticle pods, wafer carriers",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "6640.TWO",
+        "short": "Gallant Micro 均華",
+        "tier": "Taiwan",
+        "rank": 4,
+        "scores": {
+          "ai": 5,
+          "moat": 4,
+          "momentum": 4,
+          "balance": 3,
+          "valuation": 1
+        },
+        "pricingPower": "Strong with one customer: over 95% of TSMC's chip-sorter purchases",
+        "semiShare": "Chip sorters and die bonders for advanced packaging",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "3583.TW",
+        "short": "Scientech 辛耘",
+        "tier": "Taiwan",
+        "rank": 5,
+        "scores": {
+          "ai": 4,
+          "moat": 3,
+          "momentum": 2,
+          "balance": 5,
+          "valuation": 3
+        },
+        "pricingPower": "Moderate: orders booked into 2027, capacity-limited",
+        "semiShare": "Wet-process tools, wafer reclaim",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "2404.TW",
+        "short": "United Integrated 漢唐",
+        "tier": "Taiwan",
+        "rank": 6,
+        "scores": {
+          "ai": 3,
+          "moat": 3,
+          "momentum": 5,
+          "balance": 5,
+          "valuation": 4
+        },
+        "pricingPower": "Moderate: construction margins, but labour is scarce",
+        "semiShare": "Cleanrooms for TSMC fabs, including Arizona",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "6196.TW",
+        "short": "Marketech 帆宣",
+        "tier": "Taiwan",
+        "rank": 7,
+        "scores": {
+          "ai": 3,
+          "moat": 2,
+          "momentum": 5,
+          "balance": 4,
+          "valuation": 3
+        },
+        "pricingPower": "Weak to moderate: thin engineering margins",
+        "semiShare": "Fab facility systems, contract tool building",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      }
+    ],
+    "fundamentalsNote": "Several of these companies are followed by only a few analysts, so forward P/E and average targets rest on thin coverage."
   }
 }

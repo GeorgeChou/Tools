@@ -511,6 +511,9 @@
   ];
   METRICS.forEach(function (m) {
     if (!m.get) m.get = function (c) { var v = (c.fundamentals || {})[m.f]; return v == null ? null : v * (m.scale || 1); };
+    // A group can list measures to leave blank for a company where Yahoo's figure is known to be wrong.
+    var raw = m.get;
+    m.get = function (c) { return (c.exclude || []).indexOf(m.key) >= 0 ? null : raw(c); };
   });
   var METRIC_HELP = {
     peTrailing: "Share price divided by the last 12 months' earnings per share. Blank when the company made a loss.",
@@ -519,6 +522,13 @@
     netDebtUsd: "Total debt minus cash. A negative figure means more cash than debt.",
     revenueGrowth: "Latest quarter's revenue against the same quarter a year earlier."
   };
+  // Exchange rates for the currencies this group actually uses.
+  function usedRates() {
+    var seen = {};
+    cos.forEach(function (c) { seen[c.currency] = 1; var f = (c.fundamentals || {}).financialCurrency; if (f) seen[f] = 1; });
+    var list = Object.keys(seen).filter(function (k) { return k && k !== "USD" && fx.rates[k]; });
+    return list.length ? list.map(function (k) { return fmt(fx.rates[k], 2) + " " + k; }).join(", ") : "none needed";
+  }
   function viewFundamentals(root) {
     var metric = METRICS.filter(function (m) { return m.key === metricKey; })[0] || METRICS[0];
     var sel = h("select", { "aria-label": "Measure to chart", on: { change: function () { metricKey = sel.value; render(); } } },
@@ -534,7 +544,7 @@
     block.appendChild(table("fund", cos, cols));
     root.appendChild(block);
     var when = cos.map(function (c) { return c.fundamentalsUpdated || ""; }).sort()[0];
-    root.appendChild(h("div", { class: "note", text: "Source: Yahoo Finance, as supplied; fundamentals last refreshed " + stamp(when) + ". Ratios use each company's latest reported 12 months, and fiscal years differ (March for Shin-Etsu and Ajinomoto, December for the others). US$ figures use the latest exchange rates: " + Object.keys(fx.rates).filter(function (k) { return k !== "USD"; }).map(function (k) { return fmt(fx.rates[k], 2) + " " + k; }).join(", ") + " per US$. Diversified groups (Shin-Etsu, Ajinomoto, Resonac) show whole-company figures, not their semiconductor units." }));
+    root.appendChild(h("div", { class: "note", text: "Source: Yahoo Finance, as supplied; fundamentals last refreshed " + stamp(when) + ". Ratios use each company's latest reported 12 months, and fiscal years differ between companies. US$ figures use the latest exchange rates: " + usedRates() + " per US$." + (group.fundamentalsNote ? " " + group.fundamentalsNote : "") }));
   }
 
   // ---------- tab: link to AI ----------
@@ -552,7 +562,7 @@
       { label: "Correlation, 3 years", get: function (r) { return r._l3 ? r._l3.corr : null; }, show: function (v) { return v == null ? null : fmt(v, 2); } },
       { label: "Beta, 1 year", get: function (r) { return r._l1 ? r._l1.beta : null; }, show: function (v) { return v == null ? null : fmt(v, 2); }, title: "How far the stock tends to move when the index moves 1%. Above 1 means it amplifies the index" },
       { label: "AI leverage score", get: function (r) { return r.scores ? r.scores.ai : null; }, show: dots, title: "Judgment score from the research note, out of 5" },
-      { label: "Semiconductor share of profit", cls: "l", get: function (r) { return r.semiShare || null; } }
+      { label: group.detailLabel || "Notes", cls: "l", get: function (r) { return r.semiShare || null; } }
     ]));
     root.appendChild(block);
     root.appendChild(h("div", { class: "note", text: "Correlation and beta are computed here from weekly price changes (week-end closes), which avoids the time-zone gap between Tokyo, Taipei and New York. They measure how share prices moved together, not how much of each business depends on AI: a stock can track the index for reasons unrelated to AI, and one year is a short sample. The last two columns are a snapshot from " + group.snapshotSource + ", " + niceDate(group.snapshotDate) + "." }));
@@ -568,11 +578,11 @@
   }
   function viewScorecard(root) {
     root.appendChild(h("h2", { text: "Scorecard" }));
-    root.appendChild(h("div", { class: "note", style: "margin:4px 0 8px", text: "Judgment scores out of 5 from " + group.snapshotSource + ", " + niceDate(group.snapshotDate) + ". They are opinions, not data, and do not update. No. 1 to 5 are the top-five ranking; the others were added for comparison." }));
+    root.appendChild(h("div", { class: "note", style: "margin:4px 0 8px", text: "Judgment scores out of 5 from " + group.snapshotSource + ", " + niceDate(group.snapshotDate) + ". They are opinions, not data, and do not update." + (cos.some(function (c) { return c.tier === "Top 5"; }) ? " No. 1 to 5 are the top-five ranking; the others were added for comparison." : "") }));
     var total = function (r) { var x = r.scores; return x ? x.ai + x.moat + x.momentum + x.balance + x.valuation : null; };
     var sc = function (k) { return function (r) { return r.scores ? r.scores[k] : null; }; };
     root.appendChild(table("score", cos, [
-      { label: "Company", get: function (r) { return r.rank; }, show: function (v, r) { var e = coCell(r); e.appendChild(h("span", { class: "tier", text: r.tier === "Top 5" ? "No. " + r.rank : r.tier })); return e; } },
+      { label: "Company", get: function (r) { return r.rank; }, show: function (v, r) { var e = coCell(r); if (r.tier === "Top 5" || r.tier === "Added") e.appendChild(h("span", { class: "tier", text: r.tier === "Top 5" ? "No. " + r.rank : r.tier })); return e; } },
       { label: "AI leverage", get: sc("ai"), show: dots },
       { label: "Moat", get: sc("moat"), show: dots },
       { label: "Earnings momentum", get: sc("momentum"), show: dots },
@@ -586,7 +596,7 @@
     var gap = function (r) { var t = (r.fundamentals || {}).targetMean; return t ? (t / last(r) - 1) * 100 : null; };
     block.appendChild(table("analyst", cos, [
       { label: "Company", get: function (r) { return r.short; }, show: function (v, r) { return coCell(r, true); } },
-      { label: "Rating", cls: "t", get: function (r) { var k = (r.fundamentals || {}).recommendation; return k ? k.replace(/_/g, " ").replace(/^./, function (ch) { return ch.toUpperCase(); }) : null; } },
+      { label: "Rating", cls: "t", get: function (r) { var k = (r.fundamentals || {}).recommendation; return k && k !== "none" ? k.replace(/_/g, " ").replace(/^./, function (ch) { return ch.toUpperCase(); }) : null; } },
       { label: "Analysts", get: function (r) { return (r.fundamentals || {}).analystCount; }, show: function (v) { return v == null ? null : fmt(v, 0); } },
       { label: "Latest close", get: last, show: function (v, r) { return price(v, r.currency); } },
       { label: "Average target", get: function (r) { return (r.fundamentals || {}).targetMean; }, show: function (v, r) { return v == null ? null : price(v, r.currency); } },

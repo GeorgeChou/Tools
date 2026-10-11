@@ -88,6 +88,8 @@ Parameters:
 - `range`: for the performance chart: `1m` `3m` `6m` `ytd` `1y` `5y` (default `1y`)
 - `theme`: `light` or `dark` (default `light`)
 
+Groups so far: `layer1-materials`, `layer2-equipment` and `layer2-taiwan-equipment`.
+
 It reads the same files as `stock-daily`, so it needs no job of its own. To compare a
 different set of companies:
 
@@ -95,6 +97,10 @@ different set of companies:
 2. Add a group to `stock-compare/groups.json` with a title, a `benchmark` symbol and a
    `members` list. Each member needs `symbol` and `short`; `tier`, `rank`, `scores`,
    `pricingPower`, `semiShare` and `nextResults` are optional and hand-maintained.
+   `semiShare` is a free-text column whose heading comes from the group's `detailLabel`.
+   `exclude` lists measures to leave blank for a company where Yahoo's figure is wrong
+   (for example `["peForward"]` after a share split), and the group's `fundamentalsNote`
+   is shown under the fundamentals table to say why.
 3. Commit. Open `stock-compare/?group=<key>` after the job has run.
 
 A group can hold up to seven companies: each gets its own colour, in the order listed,
