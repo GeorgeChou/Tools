@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Compare</title>
+<!--
+  Comparison dashboard for a group of stocks, for embedding (e.g. in Notion via /embed).
+  The group is defined in groups.json in this folder. Prices, fundamentals and exchange
+  rates come from ../stock-daily/data/, refreshed by the stock-daily GitHub Action.
+
+  URL parameters:
+    group  key in groups.json                                   (default: first group)
+    tab    performance, returns, fundamentals, ai or scorecard  (default performance)
+    range  for the performance chart: 1m 3m 6m ytd 1y 5y        (default 1y)
+    theme  light or dark                                        (default light)
+  Example: ?group=layer1-materials&tab=returns
+-->
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --text-3: #76746e;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --wash: #f1f0ec;
+    --bench: #898781;
+    --bar: #2a78d6;
+    --pos: 42, 120, 214;   /* diverging: blue = up */
+    --neg: 208, 59, 59;    /* diverging: red = down */
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6;
+  }
+  :root[data-theme="dark"] {
+    --surface: #1a1a19;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #9b9a92;
+    --grid: #2c2c2a;
+    --axis: #45453f;
+    --wash: #2b2b28;
+    --bench: #898781;
+    --bar: #3987e5;
+    --pos: 57, 135, 229;
+    --neg: 230, 103, 103;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--surface); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans TC", sans-serif;
+    padding: 14px 16px 18px;
+  }
+  h1 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  .sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 12px 0 14px; border-bottom: 1px solid var(--grid); }
+  .tabs button, .pills button {
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2);
+    background: none; border: 0; cursor: pointer;
+  }
+  .tabs button { padding: 7px 11px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button:hover { color: var(--text); }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
+  .pills { display: flex; gap: 2px; }
+  .pills button { font-size: 12px; padding: 4px 9px; border-radius: 6px; }
+  .pills button:hover { color: var(--text); }
+  .pills button[aria-pressed="true"] { background: var(--wash); color: var(--text); }
+  button:focus-visible, select:focus-visible, th:focus-visible { outline: 2px solid var(--bar); outline-offset: 1px; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .lead { font-size: 13px; color: var(--text-2); margin: 0 0 10px; max-width: 74ch; }
+  h2 { font-size: 14px; font-weight: 650; margin: 0; }
+  .block { margin-top: 20px; }
+  .note { font-size: 11.5px; color: var(--text-3); margin-top: 10px; max-width: 90ch; }
+
+  /* legend chips */
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+  .chip {
+    font: inherit; font-size: 12.5px; color: var(--text); background: none; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--grid); border-radius: 999px; padding: 3px 10px 3px 8px;
+  }
+  .chip:hover { border-color: var(--axis); }
+  .chip[aria-pressed="true"] { background: var(--wash); border-color: var(--axis); }
+  .chip.dim { opacity: 0.45; }
+  .chip .v { color: var(--text-2); }
+  .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+  .sw.line { width: 14px; height: 0; border-radius: 0; border-top: 2px dashed var(--bench); }
+
+  .plot { position: relative; height: 380px; }
+  svg { display: block; overflow: visible; }
+  .plot > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .zero { stroke: var(--axis); stroke-width: 1; }
+  .tick { fill: var(--text-3); font-size: 11px; }
+  .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .series.bench { stroke: var(--bench); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .cross { stroke: var(--text-3); stroke-width: 1; }
+  .endlabel { fill: var(--text); font-size: 11px; font-weight: 650; }
+  .tip {
+    position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap; z-index: 5;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--grid); border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+    padding: 6px 9px; font-size: 12px;
+  }
+  .tip .d { color: var(--text-3); margin-bottom: 3px; }
+  .tip .r { display: flex; align-items: center; gap: 6px; }
+  .tip .r .n { flex: 1; padding-right: 12px; }
+  .tip .r.on { font-weight: 650; }
+
+  /* tables */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 7px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+  th { white-space: normal; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); }
+  td.l, th.l { text-align: left; white-space: normal; min-width: 128px; }
+  td.t, th.t { text-align: left; }
+  th { font-size: 11.5px; font-weight: 600; color: var(--text-3); vertical-align: bottom; line-height: 1.25; }
+  @media (max-width: 780px) { table { font-size: 12.5px; } th, td { padding: 6px 5px; } .co small { display: none; } }
+  th.sort { cursor: pointer; user-select: none; }
+  th.sort:hover { color: var(--text); }
+  th.sort[aria-sort="ascending"]::after { content: " \25B2"; font-size: 9px; }
+  th.sort[aria-sort="descending"]::after { content: " \25BC"; font-size: 9px; }
+  tr.bench td { color: var(--text-2); font-style: italic; }
+  .co { display: inline-flex; align-items: center; gap: 7px; }
+  .co small { color: var(--text-3); font-size: 11.5px; }
+  .tier { font-size: 10.5px; color: var(--text-3); border: 1px solid var(--grid); border-radius: 4px; padding: 0 5px; }
+  .dots { letter-spacing: 1px; }
+  .dots i { font-style: normal; color: var(--axis); }
+
+  /* bar charts */
+  .bars { display: grid; grid-template-columns: max-content 1fr; gap: 9px 12px; align-items: center; margin-top: 10px; }
+  .bars .lab { font-size: 13px; }
+  .bars .track { position: relative; height: 20px; }
+  .bars .bar { position: absolute; top: 0; height: 20px; background: var(--bar); }
+  .bars .bar.pos { border-radius: 0 4px 4px 0; }
+  .bars .bar.neg { border-radius: 4px 0 0 4px; }
+  .bars .bar.none { background: none; }
+  .bars .base { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+  .bars .val { position: absolute; top: 1px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  select {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--axis); border-radius: 6px; padding: 4px 8px;
+  }
+  .msg { color: var(--text-2); padding: 20px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Stock comparison</h1>
+  <div class="sub" id="asof"></div>
+</header>
+<div class="tabs" id="tabs" role="tablist" hidden></div>
+<main id="main"></main>
+<div class="tip" id="tip" hidden></div>
+<div class="msg" id="msg" hidden></div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  if (q.get("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+  var TABS = [["performance", "Performance"], ["returns", "Returns and risk"], ["fundamentals", "Fundamentals"], ["ai", "Link to AI"], ["scorecard", "Scorecard and analysts"]];
+  var RANGES = ["1m", "3m", "6m", "ytd", "1y", "5y"];
+  var tab = (q.get("tab") || "performance").toLowerCase();
+  if (!TABS.some(function (t) { return t[0] === tab; })) tab = "performance";
+  var range = (q.get("range") || "1y").toLowerCase();
+  if (RANGES.indexOf(range) < 0) range = "1y";
+
+  var NS = "http://www.w3.org/2000/svg";
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var DATA = "../stock-daily/data/";
+  var group, cos = [], bench = null, fx = { rates: { USD: 1 } };
+  var asOf = "";              // latest trading day across the group; every period is measured back from it
+  var focus = null;           // symbol highlighted on the performance chart
+  var showBench = true;
+  var metricKey = "capUsd";
+  var sortState = {};         // table id -> { col, dir }
+
+  var $ = function (id) { return document.getElementById(id); };
+  function h(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    for (var k in attrs || {}) {
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "on") for (var ev in attrs.on) e.addEventListener(ev, attrs.on[ev]);
+      else if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c != null) e.appendChild(c instanceof Node ? c : document.createTextNode(String(c))); });
+    return e;
+  }
+  function s(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fail(text) { $("tabs").hidden = true; $("main").textContent = ""; $("msg").hidden = false; $("msg").textContent = text; }
+  function getJson(url) { return fetch(url, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }); }
+  function file(symbol) { return DATA + encodeURIComponent(symbol.replace("^", "_")) + ".json"; }
+
+  // ---------- formatting ----------
+  function fmt(v, d) { return v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function sign(v) { return v > 0 ? "+" : v < 0 ? "−" : ""; }
+  function pct(v, d) { return v == null || !isFinite(v) ? "—" : sign(v) + fmt(Math.abs(v), d == null ? 1 : d) + "%"; }
+  function plainPct(v) { return v == null || !isFinite(v) ? "—" : (v < 0 ? "−" : "") + fmt(Math.abs(v), 1) + "%"; }
+  function mult(v) { return v == null || !isFinite(v) ? "—" : fmt(v, 1) + "x"; }
+  function usdB(v) { return v == null || !isFinite(v) ? "—" : (v < 0 ? "−" : "") + "$" + fmt(Math.abs(v), Math.abs(v) >= 100 ? 0 : 1) + "B"; }
+  function price(v, cur) { return fmt(v, v >= 1000 ? 0 : 2) + (cur ? " " + cur : ""); }
+  function niceDate(d) { return MONTHS[+d.slice(5, 7) - 1] + " " + (+d.slice(8, 10)) + ", " + d.slice(0, 4); }
+  function stamp(t) { return t ? t.replace("T", " ").replace("Z", " UTC") : "unknown"; }
+  function shift(dateStr, months) {
+    var d = new Date(dateStr + "T00:00:00Z");
+    d.setUTCMonth(d.getUTCMonth() - months);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // ---------- series maths ----------
+  function atOrBefore(x, dateStr) {
+    var lo = 0, hi = x.dates.length - 1, ans = -1;
+    while (lo <= hi) { var mid = (lo + hi) >> 1; if (x.dates[mid] <= dateStr) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+    return ans;
+  }
+  function last(x) { return x.close[x.close.length - 1]; }
+  function lastDate(x) { return x.dates[x.dates.length - 1]; }
+  function startDate(r) {
+    if (r === "ytd") return (+asOf.slice(0, 4) - 1) + "-12-31";
+    return shift(asOf, { "1m": 1, "3m": 3, "6m": 6, "1y": 12, "5y": 60 }[r]);
+  }
+  // Price return over a period, from the last close on or before its start.
+  function ret(x, r) {
+    var i = atOrBefore(x, startDate(r));
+    if (i < 0) i = 0;
+    return (last(x) / x.close[i] - 1) * 100;
+  }
+  function yearSlice(x) {
+    var i = Math.max(0, atOrBefore(x, startDate("1y")));
+    return x.close.slice(i);
+  }
+  function vsHigh(x) { var c = yearSlice(x); return (last(x) / Math.max.apply(null, c) - 1) * 100; }
+  function volatility(x) {
+    var c = yearSlice(x), r = [];
+    for (var i = 1; i < c.length; i++) r.push(Math.log(c[i] / c[i - 1]));
+    return sd(r) * Math.sqrt(252) * 100;
+  }
+  function maxDrop(x) {
+    var c = yearSlice(x), peak = c[0], worst = 0;
+    for (var i = 0; i < c.length; i++) { if (c[i] > peak) peak = c[i]; worst = Math.min(worst, c[i] / peak - 1); }
+    return worst * 100;
+  }
+  function mean(a) { return a.reduce(function (p, v) { return p + v; }, 0) / a.length; }
+  function sd(a) { var m = mean(a); return Math.sqrt(a.reduce(function (p, v) { return p + (v - m) * (v - m); }, 0) / (a.length - 1)); }
+  // Last close of each calendar week, keyed by that week's Monday.
+  function weekly(x) {
+    var out = {};
+    for (var i = 0; i < x.dates.length; i++) {
+      var d = new Date(x.dates[i] + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      out[d.toISOString().slice(0, 10)] = x.close[i];
+    }
+    return out;
+  }
+  // Correlation and beta of weekly returns against the benchmark over the last `weeks` weeks.
+  function link(x, weeks) {
+    if (!bench) return null;
+    var a = x._w || (x._w = weekly(x)), b = bench._w || (bench._w = weekly(bench));
+    var keys = Object.keys(a).filter(function (k) { return k in b; }).sort().slice(-(weeks + 1));
+    if (keys.length < Math.min(weeks, 26)) return null;
+    var ra = [], rb = [];
+    for (var i = 1; i < keys.length; i++) { ra.push(Math.log(a[keys[i]] / a[keys[i - 1]])); rb.push(Math.log(b[keys[i]] / b[keys[i - 1]])); }
+    var ma = mean(ra), mb = mean(rb), cov = 0, va = 0, vb = 0;
+    for (var j = 0; j < ra.length; j++) { cov += (ra[j] - ma) * (rb[j] - mb); va += (ra[j] - ma) * (ra[j] - ma); vb += (rb[j] - mb) * (rb[j] - mb); }
+    return { corr: cov / Math.sqrt(va * vb), beta: cov / vb, n: ra.length };
+  }
+  function toUsd(v, cur) { var r = fx.rates[cur]; return v == null || !r ? null : v / r; }
+
+  // ---------- shared pieces ----------
+  function coCell(c, withLocal) {
+    return h("span", { class: "co" }, [
+      c.kind === "index" ? h("span", { class: "sw line" }) : h("span", { class: "sw", style: "background:" + c.color }),
+      h("span", { text: c.short }),
+      withLocal && c.localName ? h("small", { text: c.localName }) : null
+    ]);
+  }
+  function shade(v, max) {
+    if (v == null || !isFinite(v) || !max) return "";
+    var a = Math.min(1, Math.abs(v) / max) * 0.5;
+    return "background:rgba(" + (v >= 0 ? "var(--pos)" : "var(--neg)") + "," + a.toFixed(3) + ")";
+  }
+  // A sortable table. cols: [{ label, get(row), show(value,row) -> string|node, cls, shade, title }]
+  function table(id, rows, cols, opts) {
+    opts = opts || {};
+    var st = sortState[id];
+    var sorted = rows.slice();
+    if (st) {
+      var g = cols[st.col].get;
+      sorted.sort(function (a, b) {
+        if (a.kind === "index" !== (b.kind === "index")) return a.kind === "index" ? 1 : -1; // benchmark stays last
+        var x = g(a), y = g(b);
+        if (x == null || (typeof x === "number" && !isFinite(x))) return 1;
+        if (y == null || (typeof y === "number" && !isFinite(y))) return -1;
+        return (x < y ? -1 : x > y ? 1 : 0) * st.dir;
+      });
+    }
+    var maxes = cols.map(function (c) {
+      if (!c.shade) return 0;
+      return Math.max.apply(null, rows.map(function (r) { var v = c.get(r); return v == null || !isFinite(v) ? 0 : Math.abs(v); }));
+    });
+    var head = h("tr", {}, cols.map(function (c, i) {
+      var th = h("th", { class: "sort" + (c.cls ? " " + c.cls : ""), tabindex: "0", title: c.title || "Click to sort", "aria-sort": st && st.col === i ? (st.dir > 0 ? "ascending" : "descending") : null, text: c.label });
+      var go = function () {
+        var cur = sortState[id];
+        sortState[id] = { col: i, dir: cur && cur.col === i ? -cur.dir : (i === 0 ? 1 : -1) };
+        render();
+      };
+      th.addEventListener("click", go);
+      th.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      return th;
+    }));
+    var body = sorted.map(function (r) {
+      return h("tr", { class: r.kind === "index" ? "bench" : null }, cols.map(function (c, i) {
+        var v = c.get(r), out = c.show ? c.show(v, r) : v;
+        return h("td", { class: "num" + (c.cls ? " " + c.cls : ""), style: c.shade ? shade(v, maxes[i]) : null }, [out == null ? "—" : out]);
+      }));
+    });
+    return h("div", { class: "scroll" }, [h("table", {}, [h("thead", {}, [head]), h("tbody", {}, body)])]);
+  }
+  // Horizontal bars from a zero baseline. items: [{ c, value }], show(value) -> string
+  function bars(items, show) {
+    var vals = items.map(function (i) { return i.value; }).filter(function (v) { return v != null && isFinite(v); });
+    var lo = Math.min(0, Math.min.apply(null, vals)), hi = Math.max(0, Math.max.apply(null, vals));
+    var span = (hi - lo) || 1;
+    // Leave room at each end for the value labels.
+    var padL = lo < 0 ? 12 : 0, padR = 14, usable = 100 - padL - padR;
+    var zero = padL + (0 - lo) / span * usable;
+    var box = h("div", { class: "bars" });
+    items.forEach(function (it) {
+      var v = it.value, ok = v != null && isFinite(v);
+      var w = ok ? Math.abs(v) / span * usable : 0;
+      var track = h("div", { class: "track" }, [
+        h("div", { class: "base", style: "left:" + zero + "%" }),
+        ok ? h("div", { class: "bar " + (v >= 0 ? "pos" : "neg"), style: "left:" + (v >= 0 ? zero : zero - w) + "%;width:" + w + "%" }) : null,
+        h("div", { class: "val num", style: ok && v < 0 ? "right:" + (100 - zero + w) + "%;padding-right:6px" : "left:" + (zero + w) + "%;padding-left:6px", text: ok ? show(v) : "not available" })
+      ]);
+      track.addEventListener("mousemove", function (e) { tipAt(e.clientX, e.clientY, [h("div", { class: "r on" }, [h("span", { class: "sw", style: "background:" + it.c.color }), h("span", { class: "n", text: it.c.name }), h("span", { class: "num", text: ok ? show(v) : "not available" })])]); });
+      track.addEventListener("mouseleave", hideTip);
+      box.appendChild(h("div", { class: "lab" }, [coCell(it.c)]));
+      box.appendChild(track);
+    });
+    return box;
+  }
+  function tipAt(cx, cy, kids) {
+    var tip = $("tip"); tip.textContent = ""; kids.forEach(function (k) { tip.appendChild(k); }); tip.hidden = false;
+    var w = tip.offsetWidth, hgt = tip.offsetHeight;
+    var x = cx + 14 + window.scrollX, y = cy - hgt - 10 + window.scrollY;
+    if (cx + 14 + w > window.innerWidth) x = cx - 14 - w + window.scrollX;
+    if (cy - hgt - 10 < 0) y = cy + 16 + window.scrollY;
+    tip.style.transform = "translate(" + Math.max(4, x) + "px," + y + "px)";
+  }
+  function hideTip() { $("tip").hidden = true; }
+  function pills(options, current, onPick) {
+    return h("div", { class: "pills", role: "group" }, options.map(function (o) {
+      return h("button", { type: "button", "aria-pressed": o === current ? "true" : "false", text: o.toUpperCase(), on: { click: function () { onPick(o); } } });
+    }));
+  }
+
+  // ---------- tab: performance ----------
+  function viewPerformance(root) {
+    var start = startDate(range);
+    var all = (bench && showBench ? cos.concat([bench]) : cos);
+    // One shared calendar: every trading day any market was open, each series carried forward.
+    var set = {};
+    all.forEach(function (x) { for (var i = Math.max(0, atOrBefore(x, start)); i < x.dates.length; i++) if (x.dates[i] >= start) set[x.dates[i]] = 1; });
+    var dates = Object.keys(set).sort();
+    dates.unshift(start);
+    var lines = all.map(function (x) {
+      var b = atOrBefore(x, start); if (b < 0) b = 0;
+      var base = x.close[b], j = b, vals = [];
+      for (var k = 0; k < dates.length; k++) {
+        while (j + 1 < x.dates.length && x.dates[j + 1] <= dates[k]) j++;
+        vals.push((x.close[j] / base - 1) * 100);
+      }
+      return { c: x, vals: vals, end: vals[vals.length - 1] };
+    });
+    var ranked = lines.slice().sort(function (a, b) { return b.end - a.end; });
+
+    root.appendChild(h("div", { class: "row" }, [
+      h("p", { class: "lead", style: "margin:0", text: "Price change since " + niceDate(start) + ", in each stock's own currency. Click a name to highlight it." }),
+      pills(RANGES, range, function (r) { range = r; render(); })
+    ]));
+    var legend = h("div", { class: "legend" });
+    ranked.forEach(function (l) {
+      var isB = l.c.kind === "index";
+      legend.appendChild(h("button", {
+        type: "button", class: "chip" + (focus && focus !== l.c.symbol ? " dim" : ""),
+        "aria-pressed": focus === l.c.symbol ? "true" : "false",
+        on: { click: function () { focus = focus === l.c.symbol ? null : l.c.symbol; render(); } }
+      }, [isB ? h("span", { class: "sw line" }) : h("span", { class: "sw", style: "background:" + l.c.color }), h("span", { text: l.c.short }), h("span", { class: "v num", text: pct(l.end) })]));
+    });
+    root.appendChild(legend);
+
+    var plot = h("div", { class: "plot" }), svg = s("svg", { role: "img", "aria-label": "Price change of each company since " + niceDate(start) });
+    plot.appendChild(svg); root.appendChild(plot);
+    root.appendChild(h("div", { class: "note", text: "Daily closing prices, not live. Price return only, excluding dividends and currency moves. The dashed line is the " + (group.benchmarkLabel || "benchmark") + "." }));
+
+    var W = plot.clientWidth, H = plot.clientHeight, n = dates.length;
+    var lo = 0, hi = 0;
+    lines.forEach(function (l) { l.vals.forEach(function (v) { if (v < lo) lo = v; if (v > hi) hi = v; }); });
+    var pad = (hi - lo) * 0.06 || 1; lo = Math.max(-100, lo - pad); hi += pad;   // a price cannot fall more than 100%
+    var ticks = niceTicks(lo, hi, 6);
+    var focusLine = focus ? lines.filter(function (l) { return l.c.symbol === focus; })[0] : null;
+    var endText = focusLine ? focusLine.c.short + " " + pct(focusLine.end) : "";
+    var m = { t: 8, r: Math.max(46, endText.length * 6.4 + 14), b: 22, l: 2 };
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var X = function (i) { return m.l + pw * i / (n - 1); };
+    var Y = function (v) { return m.t + ph * (1 - (v - lo) / (hi - lo)); };
+
+    ticks.forEach(function (v) {
+      svg.appendChild(s("line", { class: v === 0 ? "zero" : "gridline", x1: m.l, x2: m.l + pw, y1: Y(v), y2: Y(v) }));
+      if (!focusLine || Math.abs(Y(v) - Y(focusLine.end)) > 13)
+        svg.appendChild(s("text", { class: "tick num", x: m.l + pw + 8, y: Y(v) + 4 }, pct(v, 0)));
+    });
+    var byYear = range === "5y", lastKey = "", lastX = -1e9;
+    for (var i = 1; i < n; i++) {
+      var key = byYear ? dates[i].slice(0, 4) : dates[i].slice(0, 7);
+      if (key === lastKey) continue;
+      lastKey = key;
+      if (i === 1 && n > 30) continue;
+      var label = byYear ? key : (dates[i].slice(5, 7) === "01" ? "Jan " + key.slice(0, 4) : MONTHS[+dates[i].slice(5, 7) - 1]);
+      if (range === "1m") label = MONTHS[+dates[i].slice(5, 7) - 1] + " " + (+dates[i].slice(8, 10));
+      var xi = X(i);
+      if (xi - lastX < 46 || xi > m.l + pw - 16) continue;
+      lastX = xi;
+      svg.appendChild(s("text", { class: "tick", x: xi, y: H - 6, "text-anchor": "middle" }, label));
+    }
+    // Draw the benchmark first and the highlighted line last so it sits on top.
+    lines.slice().sort(function (a, b) {
+      var ra = a.c.kind === "index" ? 0 : a === focusLine ? 2 : 1, rb = b.c.kind === "index" ? 0 : b === focusLine ? 2 : 1;
+      return ra - rb;
+    }).forEach(function (l) {
+      var d = "";
+      for (var k = 0; k < n; k++) d += (k ? "L" : "M") + X(k).toFixed(1) + " " + Y(l.vals[k]).toFixed(1);
+      var isB = l.c.kind === "index";
+      var p = s("path", { class: "series" + (isB ? " bench" : ""), d: d });
+      if (!isB) p.style.stroke = l.c.color;
+      if (focusLine && l !== focusLine) p.style.opacity = "0.18";
+      if (l === focusLine) p.style.strokeWidth = "2.6";
+      svg.appendChild(p);
+    });
+    if (focusLine) svg.appendChild(s("text", { class: "endlabel num", x: m.l + pw + 8, y: Y(focusLine.end) + 4 }, endText));
+
+    var cross = s("line", { class: "cross", y1: m.t, y2: m.t + ph, visibility: "hidden" });
+    svg.appendChild(cross);
+    function move(ev) {
+      var rect = plot.getBoundingClientRect(), pt = ev.touches ? ev.touches[0] : ev;
+      var k = Math.max(0, Math.min(n - 1, Math.round((pt.clientX - rect.left - m.l) / pw * (n - 1))));
+      cross.setAttribute("x1", X(k)); cross.setAttribute("x2", X(k)); cross.setAttribute("visibility", "visible");
+      var rows = lines.slice().sort(function (a, b) { return b.vals[k] - a.vals[k]; }).map(function (l) {
+        return h("div", { class: "r" + (l.c.symbol === focus ? " on" : "") }, [
+          l.c.kind === "index" ? h("span", { class: "sw line" }) : h("span", { class: "sw", style: "background:" + l.c.color }),
+          h("span", { class: "n", text: l.c.short }), h("span", { class: "num", text: pct(l.vals[k]) })
+        ]);
+      });
+      tipAt(rect.left + X(k), rect.top + m.t + 30, [h("div", { class: "d", text: niceDate(dates[k]) })].concat(rows));
+    }
+    function leave() { cross.setAttribute("visibility", "hidden"); hideTip(); }
+    plot.addEventListener("mousemove", move); plot.addEventListener("mouseleave", leave);
+    plot.addEventListener("touchstart", move, { passive: true }); plot.addEventListener("touchmove", move, { passive: true }); plot.addEventListener("touchend", leave);
+  }
+  function niceTicks(min, max, count) {
+    var raw = (max - min) / count, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var norm = raw / mag, step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+    var out = [], t = Math.ceil(min / step) * step;
+    for (; t <= max + step * 1e-6; t += step) out.push(+t.toFixed(6));
+    return out;
+  }
+
+  // ---------- tab: returns and risk ----------
+  function viewReturns(root) {
+    root.appendChild(h("p", { class: "lead", text: "Price returns over 1 month to 5 years, and three measures of risk over the past year. Blue shading is a gain, red a loss; darker means larger. Click a column heading to sort." }));
+    var rows = bench ? cos.concat([bench]) : cos;
+    var cols = [{ label: "Company", get: function (r) { return r.short; }, show: function (v, r) { return coCell(r, true); } }];
+    [["1m", "1M"], ["3m", "3M"], ["6m", "6M"], ["ytd", "YTD"], ["1y", "1Y"], ["5y", "5Y"]].forEach(function (p) {
+      cols.push({ label: p[1], get: function (r) { return ret(r, p[0]); }, show: function (v) { return pct(v); }, shade: true });
+    });
+    cols.push({ label: "vs. 1Y high", get: vsHigh, show: function (v) { return pct(v); }, shade: true, title: "Latest close against the highest close of the past year" });
+    cols.push({ label: "Volatility, 1Y", get: volatility, show: plainPct, title: "Annualised swing of daily returns over the past year. Higher means a bumpier ride" });
+    cols.push({ label: "Largest drop, 1Y", get: maxDrop, show: function (v) { return pct(v); }, title: "Biggest fall from a peak to a later low over the past year" });
+    root.appendChild(table("returns", rows, cols));
+    root.appendChild(h("div", { class: "note", text: "Based on daily closing prices in each stock's own currency. Returns exclude dividends. The 5-year column covers the price history held, which is about five years. Volatility is the annualised standard deviation of daily returns over the past year; largest drop is the biggest peak-to-trough fall on closing prices over the same year." }));
+  }
+
+  // ---------- tab: fundamentals ----------
+  var METRICS = [
+    { key: "capUsd", label: "Market cap (US$)", get: function (c) { var v = toUsd(c.marketCap, c.currency); return v == null ? null : v / 1e9; }, show: usdB },
+    { key: "peTrailing", label: "P/E, trailing", f: "peTrailing", show: mult },
+    { key: "peForward", label: "P/E, forward", f: "peForward", show: mult },
+    { key: "evToEbitda", label: "EV / EBITDA", f: "evToEbitda", show: mult },
+    { key: "priceToSales", label: "Price / sales", f: "priceToSales", show: mult },
+    { key: "priceToBook", label: "Price / book", f: "priceToBook", show: mult },
+    { key: "grossMargin", label: "Gross margin", f: "grossMargin", scale: 100, show: plainPct },
+    { key: "operatingMargin", label: "Operating margin", f: "operatingMargin", scale: 100, show: plainPct },
+    { key: "netMargin", label: "Net margin", f: "netMargin", scale: 100, show: plainPct },
+    { key: "returnOnEquity", label: "Return on equity", f: "returnOnEquity", scale: 100, show: plainPct },
+    { key: "revenueGrowth", label: "Revenue growth, YoY", f: "revenueGrowth", scale: 100, show: function (v) { return pct(v); } },
+    { key: "netDebtUsd", label: "Net debt (US$)", get: function (c) { var f = c.fundamentals || {}; if (f.totalDebt == null || f.totalCash == null) return null; var v = toUsd(f.totalDebt - f.totalCash, f.financialCurrency || c.currency); return v == null ? null : v / 1e9; }, show: usdB },
+    { key: "dividendYieldPct", label: "Dividend yield", f: "dividendYieldPct", show: plainPct }
+  ];
+  METRICS.forEach(function (m) {
+    if (!m.get) m.get = function (c) { var v = (c.fundamentals || {})[m.f]; return v == null ? null : v * (m.scale || 1); };
+  });
+  var METRIC_HELP = {
+    peTrailing: "Share price divided by the last 12 months' earnings per share. Blank when the company made a loss.",
+    peForward: "Share price divided by analysts' forecast earnings per share.",
+    evToEbitda: "Company value including debt, divided by operating profit before depreciation.",
+    netDebtUsd: "Total debt minus cash. A negative figure means more cash than debt.",
+    revenueGrowth: "Latest quarter's revenue against the same quarter a year earlier."
+  };
+  function viewFundamentals(root) {
+    var metric = METRICS.filter(function (m) { return m.key === metricKey; })[0] || METRICS[0];
+    var sel = h("select", { "aria-label": "Measure to chart", on: { change: function () { metricKey = sel.value; render(); } } },
+      METRICS.map(function (m) { return h("option", { value: m.key, selected: m.key === metric.key ? "selected" : null, text: m.label }); }));
+    root.appendChild(h("div", { class: "row" }, [h("h2", { text: metric.label }), h("label", { style: "font-size:12.5px;color:var(--text-2)" }, ["Chart: ", sel])]));
+    if (METRIC_HELP[metric.key]) root.appendChild(h("div", { class: "note", style: "margin-top:4px", text: METRIC_HELP[metric.key] }));
+    var items = cos.map(function (c) { return { c: c, value: metric.get(c) }; }).sort(function (a, b) { return (b.value == null ? -Infinity : b.value) - (a.value == null ? -Infinity : a.value); });
+    root.appendChild(bars(items, metric.show));
+
+    var block = h("div", { class: "block" }, [h("h2", { text: "All measures" })]);
+    var cols = [{ label: "Company", get: function (r) { return r.short; }, show: function (v, r) { return coCell(r); } }];
+    METRICS.forEach(function (m) { cols.push({ label: m.label, get: m.get, show: m.show, title: METRIC_HELP[m.key] }); });
+    block.appendChild(table("fund", cos, cols));
+    root.appendChild(block);
+    var when = cos.map(function (c) { return c.fundamentalsUpdated || ""; }).sort()[0];
+    root.appendChild(h("div", { class: "note", text: "Source: Yahoo Finance, as supplied; fundamentals last refreshed " + stamp(when) + ". Ratios use each company's latest reported 12 months, and fiscal years differ (March for Shin-Etsu and Ajinomoto, December for the others). US$ figures use the latest exchange rates: " + Object.keys(fx.rates).filter(function (k) { return k !== "USD"; }).map(function (k) { return fmt(fx.rates[k], 2) + " " + k; }).join(", ") + " per US$. Diversified groups (Shin-Etsu, Ajinomoto, Resonac) show whole-company figures, not their semiconductor units." }));
+  }
+
+  // ---------- tab: link to AI ----------
+  function viewAi(root) {
+    var name = group.benchmarkLabel || "benchmark";
+    root.appendChild(h("p", { class: "lead", text: "How closely each share price has moved with the " + name + ", a basket of semiconductor stocks used here as a yardstick for AI demand. 1.0 means it moved in step every week; 0 means no relationship." }));
+    cos.forEach(function (c) { c._l1 = link(c, 52); c._l3 = link(c, 156); });
+    root.appendChild(h("h2", { text: "Correlation with the " + name + ", past year" }));
+    var items = cos.map(function (c) { return { c: c, value: c._l1 ? c._l1.corr : null }; }).sort(function (a, b) { return (b.value || -9) - (a.value || -9); });
+    root.appendChild(bars(items, function (v) { return fmt(v, 2); }));
+    var block = h("div", { class: "block" }, [h("h2", { text: "Detail" })]);
+    block.appendChild(table("ai", cos, [
+      { label: "Company", get: function (r) { return r.short; }, show: function (v, r) { return coCell(r, true); } },
+      { label: "Correlation, 1 year", get: function (r) { return r._l1 ? r._l1.corr : null; }, show: function (v) { return v == null ? null : fmt(v, 2); } },
+      { label: "Correlation, 3 years", get: function (r) { return r._l3 ? r._l3.corr : null; }, show: function (v) { return v == null ? null : fmt(v, 2); } },
+      { label: "Beta, 1 year", get: function (r) { return r._l1 ? r._l1.beta : null; }, show: function (v) { return v == null ? null : fmt(v, 2); }, title: "How far the stock tends to move when the index moves 1%. Above 1 means it amplifies the index" },
+      { label: "AI leverage score", get: function (r) { return r.scores ? r.scores.ai : null; }, show: dots, title: "Judgment score from the research note, out of 5" },
+      { label: "Semiconductor share of profit", cls: "l", get: function (r) { return r.semiShare || null; } }
+    ]));
+    root.appendChild(block);
+    root.appendChild(h("div", { class: "note", text: "Correlation and beta are computed here from weekly price changes (week-end closes), which avoids the time-zone gap between Tokyo, Taipei and New York. They measure how share prices moved together, not how much of each business depends on AI: a stock can track the index for reasons unrelated to AI, and one year is a short sample. The last two columns are a snapshot from " + group.snapshotSource + ", " + niceDate(group.snapshotDate) + "." }));
+  }
+
+  // ---------- tab: scorecard and analysts ----------
+  function dots(v) {
+    if (v == null) return null;
+    var e = h("span", { class: "dots", title: v + " out of 5" });
+    e.appendChild(document.createTextNode("●".repeat(v)));
+    e.appendChild(h("i", { text: "○".repeat(5 - v) }));
+    return e;
+  }
+  function viewScorecard(root) {
+    root.appendChild(h("h2", { text: "Scorecard" }));
+    root.appendChild(h("div", { class: "note", style: "margin:4px 0 8px", text: "Judgment scores out of 5 from " + group.snapshotSource + ", " + niceDate(group.snapshotDate) + ". They are opinions, not data, and do not update. No. 1 to 5 are the top-five ranking; the others were added for comparison." }));
+    var total = function (r) { var x = r.scores; return x ? x.ai + x.moat + x.momentum + x.balance + x.valuation : null; };
+    var sc = function (k) { return function (r) { return r.scores ? r.scores[k] : null; }; };
+    root.appendChild(table("score", cos, [
+      { label: "Company", get: function (r) { return r.rank; }, show: function (v, r) { var e = coCell(r); e.appendChild(h("span", { class: "tier", text: r.tier === "Top 5" ? "No. " + r.rank : r.tier })); return e; } },
+      { label: "AI leverage", get: sc("ai"), show: dots },
+      { label: "Moat", get: sc("moat"), show: dots },
+      { label: "Earnings momentum", get: sc("momentum"), show: dots },
+      { label: "Balance sheet", get: sc("balance"), show: dots },
+      { label: "Valuation", get: sc("valuation"), show: dots, title: "5 means the most attractive valuation" },
+      { label: "Total / 25", get: total },
+      { label: "Pricing power", cls: "l", get: function (r) { return r.pricingPower || null; } }
+    ]));
+
+    var block = h("div", { class: "block" }, [h("h2", { text: "Analyst view" })]);
+    var gap = function (r) { var t = (r.fundamentals || {}).targetMean; return t ? (t / last(r) - 1) * 100 : null; };
+    block.appendChild(table("analyst", cos, [
+      { label: "Company", get: function (r) { return r.short; }, show: function (v, r) { return coCell(r, true); } },
+      { label: "Rating", cls: "t", get: function (r) { var k = (r.fundamentals || {}).recommendation; return k ? k.replace(/_/g, " ").replace(/^./, function (ch) { return ch.toUpperCase(); }) : null; } },
+      { label: "Analysts", get: function (r) { return (r.fundamentals || {}).analystCount; }, show: function (v) { return v == null ? null : fmt(v, 0); } },
+      { label: "Latest close", get: last, show: function (v, r) { return price(v, r.currency); } },
+      { label: "Average target", get: function (r) { return (r.fundamentals || {}).targetMean; }, show: function (v, r) { return v == null ? null : price(v, r.currency); } },
+      { label: "Target vs. close", get: gap, show: function (v) { return pct(v); }, shade: true, title: "How far the average target sits above (+) or below (−) the latest close" },
+      { label: "Next results", get: function (r) { return r.nextResults || null; }, cls: "t", show: function (v, r) { return v ? MONTHS[+v.slice(5, 7) - 1] + " " + (+v.slice(8, 10)) + (r.nextResultsNote ? ", " + r.nextResultsNote : "") : "not confirmed"; } }
+    ]));
+    root.appendChild(block);
+    root.appendChild(h("div", { class: "note", text: "Ratings and average targets are Yahoo Finance's aggregate of analyst estimates, refreshed with the fundamentals; individual brokers differ and some targets may be old. Results dates are a snapshot from " + niceDate(group.snapshotDate) + " and can change. Analysis for research, not personal investment advice." }));
+  }
+
+  // ---------- shell ----------
+  var VIEWS = { performance: viewPerformance, returns: viewReturns, fundamentals: viewFundamentals, ai: viewAi, scorecard: viewScorecard };
+  function render() {
+    hideTip();
+    Array.prototype.forEach.call($("tabs").children, function (b) { b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false"); });
+    var main = $("main"); main.textContent = "";
+    VIEWS[tab](main);
+  }
+  var resizeTimer;
+  window.addEventListener("resize", function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (cos.length && tab === "performance") render(); }, 120); });
+
+  getJson("groups.json").then(function (groups) {
+    var key = q.get("group") || Object.keys(groups)[0];
+    group = groups[key];
+    if (!group) throw new Error("no group");
+    var wanted = group.members.map(function (m) { return getJson(file(m.symbol)); });
+    wanted.push(group.benchmark ? getJson(file(group.benchmark)).catch(function () { return null; }) : Promise.resolve(null));
+    wanted.push(getJson(DATA + "fx.json").catch(function () { return fx; }));
+    return Promise.all(wanted);
+  }).then(function (res) {
+    fx = res.pop(); bench = res.pop();
+    if (bench) { bench.short = group.benchmarkLabel || bench.name; bench.color = "var(--bench)"; }
+    cos = res.map(function (d, i) {
+      var m = group.members[i];
+      for (var k in m) d[k] = m[k];
+      d.short = m.short || d.name;
+      d.color = "var(--s" + (i % 7 + 1) + ")";   // colour follows the company, in groups.json order
+      return d;
+    });
+    document.title = group.title;
+    $("title").textContent = group.title;
+    asOf = cos.map(lastDate).sort().pop();
+    $("asof").textContent = cos.length + " companies · prices to " + niceDate(asOf) + " · data refreshed " + stamp(cos.map(function (c) { return c.updated; }).sort().pop());
+    TABS.forEach(function (t) {
+      var b = h("button", { type: "button", role: "tab", text: t[1], on: { click: function () { tab = t[0]; render(); } } });
+      b.dataset.tab = t[0];
+      $("tabs").appendChild(b);
+    });
+    $("tabs").hidden = false;
+    return true;
+  }).catch(function () {
+    fail("Could not load this comparison. Check that the group exists in stock-compare/groups.json and that each of its symbols is listed in stock-daily/symbols.json.");
+    return false;
+  }).then(function (ok) { if (ok) render(); });
+})();
+</script>
+</body>
+</html>

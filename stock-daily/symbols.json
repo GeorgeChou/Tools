@@ -3,5 +3,8 @@
   { "symbol": "4063.T", "name": "Shin-Etsu Chemical", "localName": "信越化学工業" },
   { "symbol": "2802.T", "name": "Ajinomoto", "localName": "味の素" },
   { "symbol": "4186.T", "name": "Tokyo Ohka Kogyo", "localName": "東京応化工業" },
-  { "symbol": "3436.T", "name": "SUMCO", "localName": "株式会社SUMCO" }
+  { "symbol": "3436.T", "name": "SUMCO", "localName": "株式会社SUMCO" },
+  { "symbol": "ENTG", "name": "Entegris", "localName": "" },
+  { "symbol": "6488.TWO", "name": "GlobalWafers", "localName": "環球晶圓" },
+  { "symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index" }
 ]

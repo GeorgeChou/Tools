@@ -1,0 +1,124 @@
+{
+  "layer1-materials": {
+    "title": "AI hardware Layer 1: materials, wafers and chemicals",
+    "benchmark": "^SOX",
+    "benchmarkLabel": "SOX index",
+    "snapshotDate": "2026-10-11",
+    "snapshotSource": "Layer 1 deep-dive research report",
+    "members": [
+      {
+        "symbol": "4004.T",
+        "short": "Resonac",
+        "tier": "Top 5",
+        "rank": 1,
+        "scores": {
+          "ai": 5,
+          "moat": 4,
+          "momentum": 5,
+          "balance": 3,
+          "valuation": 3
+        },
+        "pricingPower": "Strong: raised prices before adding volume",
+        "semiShare": "About 92% of core operating profit, 1H 2026 (computed)",
+        "nextResults": ""
+      },
+      {
+        "symbol": "4063.T",
+        "short": "Shin-Etsu",
+        "tier": "Top 5",
+        "rank": 2,
+        "scores": {
+          "ai": 4,
+          "moat": 5,
+          "momentum": 3,
+          "balance": 5,
+          "valuation": 4
+        },
+        "pricingPower": "Strong: lowest-cost No. 1 in wafers, raising prices now",
+        "semiShare": "59% of operating profit, Apr-Jun 2026",
+        "nextResults": "2026-10-27"
+      },
+      {
+        "symbol": "2802.T",
+        "short": "Ajinomoto",
+        "tier": "Top 5",
+        "rank": 3,
+        "scores": {
+          "ai": 4,
+          "moat": 5,
+          "momentum": 4,
+          "balance": 5,
+          "valuation": 3
+        },
+        "pricingPower": "Strongest: over 95% of ABF film",
+        "semiShare": "About 32% of business profit, Apr-Jun 2026",
+        "nextResults": ""
+      },
+      {
+        "symbol": "ENTG",
+        "short": "Entegris",
+        "tier": "Top 5",
+        "rank": 4,
+        "scores": {
+          "ai": 4,
+          "moat": 4,
+          "momentum": 4,
+          "balance": 2,
+          "valuation": 2
+        },
+        "pricingPower": "Moderate: filtration duopoly",
+        "semiShare": "Pure semiconductor supplier",
+        "nextResults": "2026-10-29"
+      },
+      {
+        "symbol": "4186.T",
+        "short": "TOK",
+        "tier": "Top 5",
+        "rank": 5,
+        "scores": {
+          "ai": 4,
+          "moat": 4,
+          "momentum": 4,
+          "balance": 4,
+          "valuation": 4
+        },
+        "pricingPower": "Moderate to strong: No. 1 in photoresist",
+        "semiShare": "Not verified",
+        "nextResults": "2026-11-10"
+      },
+      {
+        "symbol": "6488.TWO",
+        "short": "GlobalWafers",
+        "tier": "Added",
+        "rank": 6,
+        "scores": {
+          "ai": 3,
+          "moat": 3,
+          "momentum": 2,
+          "balance": 4,
+          "valuation": 2
+        },
+        "pricingPower": "Not yet: negotiating 2027 prices",
+        "semiShare": "Pure wafer maker",
+        "nextResults": "2026-11-10",
+        "nextResultsNote": "Oct. revenue"
+      },
+      {
+        "symbol": "3436.T",
+        "short": "SUMCO",
+        "tier": "Added",
+        "rank": 7,
+        "scores": {
+          "ai": 3,
+          "moat": 3,
+          "momentum": 2,
+          "balance": 3,
+          "valuation": 1
+        },
+        "pricingPower": "Weak now: wants large increases",
+        "semiShare": "Pure wafer maker",
+        "nextResults": "2026-11-11"
+      }
+    ]
+  }
+}
