@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Daily</title>
+<!--
+  Daily-close stock chart and info strip for embedding (e.g. in Notion via /embed).
+  For exchanges whose data TradingView does not allow in its free widgets (e.g. Tokyo).
+  Prices come from data/<symbol>.json in this folder, refreshed by a GitHub Action.
+
+  URL parameters:
+    symbol  Yahoo Finance symbol listed in symbols.json    (default 4063.T)
+    view    chart, info, or both                           (default both)
+    range   tab opened first: 1m 3m 6m ytd 1y 5y           (default 1y)
+    theme   light or dark                                  (default light)
+  Example: ?symbol=4004.T&view=chart&range=6m
+-->
+<style>
+  :root {
+    --surface: #ffffff;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --text-3: #7a7974;
+    --rule: #e9e8e4;
+    --series: #2a78d6;
+    --up: #0a7a3d;
+    --down: #c5362f;
+    --tab-on: #f1f0ec;
+  }
+  :root[data-theme="dark"] {
+    --surface: #1a1a19;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #9b9a92;
+    --rule: #33332f;
+    --series: #3987e5;
+    --up: #4cc38a;
+    --down: #f0817b;
+    --tab-on: #2b2b28;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--surface);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans TC", sans-serif;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    overflow: hidden;
+  }
+  body.info { overflow: auto; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Info strip */
+  #info { flex: none; }
+  .head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+  .name { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .local { font-size: 15px; color: var(--text-2); }
+  .meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .quote { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
+  .price { font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+  .cur { font-size: 12px; color: var(--text-3); }
+  .chg { font-size: 14px; font-weight: 600; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .asof { font-size: 12px; color: var(--text-3); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .stat .k { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .v { font-size: 14px; font-weight: 600; }
+
+  /* Chart */
+  #chart { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  body.both #chart { margin-top: 10px; }
+  .bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .title { font-size: 13px; color: var(--text-2); }
+  .title b { color: var(--text); font-weight: 650; }
+  .tabs { display: flex; gap: 2px; }
+  .tabs button {
+    font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--text-2); background: none; border: 0; border-radius: 6px;
+    padding: 4px 9px; cursor: pointer;
+  }
+  .tabs button:hover { color: var(--text); }
+  .tabs button[aria-pressed="true"] { background: var(--tab-on); color: var(--text); }
+  .tabs button:focus-visible { outline: 2px solid var(--series); outline-offset: 1px; }
+  .plot { flex: 1 1 auto; min-height: 0; position: relative; margin-top: 6px; }
+  svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+  .grid { stroke: var(--rule); stroke-width: 1; }
+  .tick { fill: var(--text-3); font-size: 11px; }
+  .line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .area { fill: var(--series); opacity: 0.1; }
+  .cross { stroke: var(--text-3); stroke-width: 1; }
+  .dot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+  .endlabel { fill: var(--text); font-size: 11px; font-weight: 650; }
+  .tip {
+    position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--rule); border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    padding: 5px 8px; font-size: 12px;
+  }
+  .tip .d { color: var(--text-3); }
+  .tip .p { font-weight: 650; }
+  .foot { flex: none; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+  #info .foot { margin-top: 10px; }
+  .msg { color: var(--text-2); padding: 16px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="info" hidden></div>
+<div id="chart" hidden>
+  <div class="bar">
+    <div class="title" id="title"></div>
+    <div class="tabs" id="tabs" role="group" aria-label="Date range"></div>
+  </div>
+  <div class="plot" id="plot">
+    <svg id="svg" role="img"></svg>
+    <div class="tip" id="tip" hidden></div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+<div class="msg" id="msg" hidden></div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var symbol = (q.get("symbol") || "4063.T").toUpperCase();
+  var view = (q.get("view") || "both").toLowerCase();
+  if (["chart", "info", "both"].indexOf(view) < 0) view = "both";
+  var RANGES = ["1m", "3m", "6m", "ytd", "1y", "5y"];
+  var range = (q.get("range") || "1y").toLowerCase();
+  if (RANGES.indexOf(range) < 0) range = "1y";
+  if (q.get("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+  document.title = symbol;
+  document.body.className = view;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var data = null;
+
+  function fail(text) {
+    $("info").hidden = true; $("chart").hidden = true;
+    $("msg").hidden = false; $("msg").textContent = text;
+  }
+
+  // Symbols are file names, so allow only what a ticker can contain.
+  if (!/^[A-Z0-9.\-^=]{1,15}$/.test(symbol)) { fail("Unknown symbol."); return; }
+
+  fetch("data/" + encodeURIComponent(symbol) + ".json", { cache: "no-cache" })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (d) {
+      data = d;
+      if (view !== "chart") renderInfo();
+      if (view !== "info") { $("chart").hidden = false; buildTabs(); draw(); }
+    })
+    .catch(function () {
+      fail("No data for " + symbol + ". Add it to stock-daily/symbols.json in the Tools repo; prices appear after the next update run.");
+    });
+
+  // ---------- helpers ----------
+  function dec() { return data.close[data.close.length - 1] >= 1000 ? 0 : 2; }
+  function fmt(v, digits) {
+    return v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+  function pct(v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 1) + "%"; }
+  function arrow(v) { return v > 0 ? "▲" : v < 0 ? "▼" : ""; }
+  function cls(v) { return v > 0 ? "up" : v < 0 ? "down" : ""; }
+  function niceDate(s) { return MONTHS[+s.slice(5, 7) - 1] + " " + (+s.slice(8, 10)) + ", " + s.slice(0, 4); }
+  function shift(dateStr, months) {
+    var d = new Date(dateStr + "T00:00:00Z");
+    d.setUTCMonth(d.getUTCMonth() - months);
+    return d.toISOString().slice(0, 10);
+  }
+  // First trading day on or after the given date.
+  function indexFrom(dateStr) {
+    for (var i = 0; i < data.dates.length; i++) if (data.dates[i] >= dateStr) return i;
+    return data.dates.length - 1;
+  }
+  // Last trading day on or before the given date: the base for a return over a period.
+  function indexAtOrBefore(dateStr) {
+    for (var i = data.dates.length - 1; i >= 0; i--) if (data.dates[i] <= dateStr) return i;
+    return -1;
+  }
+  function startIndex(r) {
+    var last = data.dates[data.dates.length - 1];
+    if (r === "5y") return 0;
+    if (r === "ytd") return Math.max(0, indexAtOrBefore((+last.slice(0, 4) - 1) + "-12-31"));
+    var months = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 }[r];
+    return Math.max(0, indexAtOrBefore(shift(last, months)));
+  }
+  function capText(v, cur) {
+    var units = [[1e12, "T"], [1e9, "B"], [1e6, "M"]];
+    for (var i = 0; i < units.length; i++) if (v >= units[i][0]) return (cur ? cur + " " : "") + fmt(v / units[i][0], 2) + units[i][1];
+    return (cur ? cur + " " : "") + fmt(v, 0);
+  }
+  function sourceLine() { return "Source: Yahoo Finance. Updated " + data.updated.replace("T", " ").replace("Z", " UTC") + "."; }
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function div(className, text) {
+    var e = document.createElement("div");
+    if (className) e.className = className;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function span(className, text) {
+    var e = document.createElement("span");
+    if (className) e.className = className;
+    e.textContent = text;
+    return e;
+  }
+
+  // ---------- info strip ----------
+  function renderInfo() {
+    var c = data.close, n = c.length, last = c[n - 1], prev = c[n - 2];
+    var lastDate = data.dates[n - 1];
+    var box = $("info"); box.hidden = false;
+
+    var head = div("head");
+    head.appendChild(span("name", data.name));
+    if (data.localName) head.appendChild(span("local", data.localName));
+    box.appendChild(head);
+    box.appendChild(div("meta", data.symbol + (data.exchange ? " · " + data.exchange : "")));
+
+    var quote = div("quote");
+    quote.appendChild(span("price num", fmt(last, dec())));
+    if (data.currency) quote.appendChild(span("cur", data.currency));
+    var dayChg = last - prev, dayPct = (last / prev - 1) * 100;
+    quote.appendChild(span("chg num " + cls(dayChg),
+      arrow(dayChg) + " " + (dayChg > 0 ? "+" : dayChg < 0 ? "−" : "") + fmt(Math.abs(dayChg), dec()) + " (" + pct(dayPct) + ")"));
+    quote.appendChild(span("asof", "Close on " + niceDate(lastDate)));
+    box.appendChild(quote);
+
+    var stats = div("stats");
+    function stat(label, value, signed) {
+      var s = div("stat");
+      s.appendChild(div("k", label));
+      s.appendChild(div("v num" + (signed != null ? " " + cls(signed) : ""), value));
+      stats.appendChild(s);
+    }
+    function ret(label, r) {
+      var i = startIndex(r), v = (last / c[i] - 1) * 100;
+      stat(label, pct(v), v);
+    }
+    ret("1 month", "1m"); ret("3 months", "3m"); ret("6 months", "6m"); ret("YTD", "ytd"); ret("1 year", "1y");
+    var from = indexFrom(shift(lastDate, 12)), hi = -Infinity, lo = Infinity;
+    for (var i = from; i < n; i++) { if (c[i] > hi) hi = c[i]; if (c[i] < lo) lo = c[i]; }
+    stat("52-wk high", fmt(hi, dec()));
+    stat("52-wk low", fmt(lo, dec()));
+    stat("vs. high", pct((last / hi - 1) * 100), last / hi - 1);
+    if (data.marketCap) stat("Market cap", capText(data.marketCap, data.currency));
+    box.appendChild(stats);
+    if (view === "info") box.appendChild(div("foot", "Based on daily closing prices, not live. Highs and lows are closing levels. Returns exclude dividends. " + sourceLine()));
+  }
+
+  // ---------- chart ----------
+  function buildTabs() {
+    RANGES.forEach(function (r) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = r.toUpperCase();
+      b.setAttribute("aria-pressed", r === range ? "true" : "false");
+      b.addEventListener("click", function () {
+        range = r;
+        Array.prototype.forEach.call($("tabs").children, function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        draw();
+      });
+      $("tabs").appendChild(b);
+    });
+    $("foot").textContent = "Daily closing prices, not live. Returns exclude dividends. " + sourceLine();
+    window.addEventListener("resize", draw);
+  }
+
+  function niceTicks(min, max, count) {
+    var span = max - min || Math.abs(max) || 1;
+    var raw = span / count, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var norm = raw / mag, step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+    var ticks = [], t = Math.ceil(min / step) * step;
+    for (; t <= max + step * 1e-6; t += step) ticks.push(+t.toFixed(6));
+    return ticks;
+  }
+
+  var view_ = null; // geometry of the current drawing, for the hover layer
+
+  function draw() {
+    var svg = $("svg"), plot = $("plot");
+    var i0 = startIndex(range), dates = data.dates.slice(i0), c = data.close.slice(i0), n = c.length;
+    var first = c[0], last = c[n - 1], chg = (last / first - 1) * 100;
+
+    var t = $("title"); t.textContent = "";
+    if (view === "chart") {
+      var b = document.createElement("b"); b.textContent = data.name; t.appendChild(b);
+      t.appendChild(document.createTextNode((data.localName ? " " + data.localName : "") + " · "));
+    }
+    t.appendChild(span("num", fmt(last, dec()) + (data.currency ? " " + data.currency : "") + " "));
+    t.appendChild(span("num " + cls(chg), arrow(chg) + " " + pct(chg)));
+    t.appendChild(document.createTextNode(" since " + niceDate(dates[0])));
+    // Measure only now: a title that wraps changes the height left for the plot.
+    var W = plot.clientWidth, H = plot.clientHeight;
+    if (W < 40 || H < 40) return;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    $("tip").hidden = true;
+    svg.setAttribute("aria-label", data.name + " daily closing price, " + niceDate(dates[0]) + " to " + niceDate(dates[n - 1]) + ": " + pct(chg));
+
+    var lo = Math.min.apply(null, c), hi = Math.max.apply(null, c);
+    var pad = (hi - lo) * 0.08 || hi * 0.02;
+    var ymin = lo - pad, ymax = hi + pad;
+    var ticks = niceTicks(ymin, ymax, Math.max(2, Math.floor(H / 60)));
+    var tickDigits = ticks.some(function (v) { return v % 1 !== 0; }) ? 2 : 0;
+    var endText = fmt(last, dec());
+    var widest = Math.max.apply(null, ticks.map(function (v) { return fmt(v, tickDigits).length; }).concat(endText.length));
+    var m = { t: 8, r: widest * 6.6 + 12, b: 22, l: 2 };
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var x = function (i) { return m.l + (n === 1 ? pw / 2 : pw * i / (n - 1)); };
+    var y = function (v) { return m.t + ph * (1 - (v - ymin) / (ymax - ymin)); };
+
+    // gridlines + y labels (right side, next to the latest value)
+    ticks.forEach(function (v) {
+      svg.appendChild(el("line", { class: "grid", x1: m.l, x2: m.l + pw, y1: y(v), y2: y(v) }));
+      if (Math.abs(y(v) - y(last)) > 13)
+        svg.appendChild(el("text", { class: "tick num", x: m.l + pw + 8, y: y(v) + 4 }, fmt(v, tickDigits)));
+    });
+
+    // x labels: months, or years on the long range
+    var byYear = range === "5y", lastKey = "", lastX = -1e9;
+    for (var i = 0; i < n; i++) {
+      var key = byYear ? dates[i].slice(0, 4) : dates[i].slice(0, 7);
+      if (key === lastKey) continue;
+      lastKey = key;
+      if (i === 0 && n > 30) continue; // a partial first period would crowd the edge
+      var label = byYear ? key : (dates[i].slice(5, 7) === "01" ? MONTHS[0] + " " + key.slice(0, 4) : MONTHS[+dates[i].slice(5, 7) - 1]);
+      var xi = x(i);
+      if (range === "1m") label = MONTHS[+dates[i].slice(5, 7) - 1] + " " + (+dates[i].slice(8, 10));
+      if (xi - lastX < 46 || xi > m.l + pw - 18) continue;
+      lastX = xi;
+      var atEdge = xi < m.l + 20;
+      svg.appendChild(el("text", { class: "tick", x: atEdge ? m.l : xi, y: H - 6, "text-anchor": atEdge ? "start" : "middle" }, label));
+    }
+
+    // series
+    var path = "";
+    for (var j = 0; j < n; j++) path += (j ? "L" : "M") + x(j).toFixed(1) + " " + y(c[j]).toFixed(1);
+    svg.appendChild(el("path", { class: "area", d: path + "L" + x(n - 1).toFixed(1) + " " + (m.t + ph) + "L" + x(0).toFixed(1) + " " + (m.t + ph) + "Z" }));
+    svg.appendChild(el("path", { class: "line", d: path }));
+    svg.appendChild(el("circle", { class: "dot", cx: x(n - 1), cy: y(last), r: 4 }));
+    svg.appendChild(el("text", { class: "endlabel num", x: m.l + pw + 8, y: y(last) + 4 }, endText));
+
+    // hover layer
+    var cross = el("line", { class: "cross", y1: m.t, y2: m.t + ph, visibility: "hidden" });
+    var dot = el("circle", { class: "dot", r: 4.5, visibility: "hidden" });
+    svg.appendChild(cross); svg.appendChild(dot);
+    view_ = { n: n, x: x, y: y, c: c, dates: dates, m: m, pw: pw, W: W, cross: cross, dot: dot, first: first };
+  }
+
+  function hover(ev) {
+    if (!view_) return;
+    var v = view_, rect = $("plot").getBoundingClientRect();
+    var px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    var i = Math.round((px - v.m.l) / v.pw * (v.n - 1));
+    i = Math.max(0, Math.min(v.n - 1, i));
+    var cx = v.x(i), cy = v.y(v.c[i]);
+    v.cross.setAttribute("x1", cx); v.cross.setAttribute("x2", cx); v.cross.setAttribute("visibility", "visible");
+    v.dot.setAttribute("cx", cx); v.dot.setAttribute("cy", cy); v.dot.setAttribute("visibility", "visible");
+    var tip = $("tip"); tip.textContent = ""; tip.hidden = false;
+    tip.appendChild(div("d", niceDate(v.dates[i])));
+    var chg = (v.c[i] / v.first - 1) * 100;
+    var line = div("p num", fmt(v.c[i], dec()) + (data.currency ? " " + data.currency : "") + "  ");
+    line.appendChild(span("num " + cls(chg), pct(chg)));
+    tip.appendChild(line);
+    var tw = tip.offsetWidth, left = cx + 12;
+    if (left + tw > v.W) left = cx - 12 - tw;
+    tip.style.transform = "translate(" + Math.max(0, left) + "px," + Math.max(0, cy - 44) + "px)";
+  }
+  function leave() {
+    if (!view_) return;
+    view_.cross.setAttribute("visibility", "hidden");
+    view_.dot.setAttribute("visibility", "hidden");
+    $("tip").hidden = true;
+  }
+  var plotEl = $("plot");
+  plotEl.addEventListener("mousemove", hover);
+  plotEl.addEventListener("mouseleave", leave);
+  plotEl.addEventListener("touchstart", hover, { passive: true });
+  plotEl.addEventListener("touchmove", hover, { passive: true });
+  plotEl.addEventListener("touchend", leave);
+})();
+</script>
+</body>
+</html>

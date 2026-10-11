@@ -1,0 +1,50 @@
+name: Update stock-daily prices
+
+# Refreshes stock-daily/data/*.json so the stock-daily embeds show the latest close.
+on:
+  schedule:
+    - cron: "40 7 * * 1-5"    # 16:40 Tokyo, after the Tokyo close
+    - cron: "40 21 * * 1-5"   # after the US close
+  push:
+    branches: [main]
+    paths:
+      - "stock-daily/symbols.json"
+      - "stock-daily/update.py"
+      - ".github/workflows/stock-daily.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-daily
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet yfinance
+      - name: Fetch prices
+        id: fetch
+        continue-on-error: true
+        run: python stock-daily/update.py
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stock-daily/data
+          if git diff --cached --quiet; then
+            echo "No price changes."
+          else
+            git commit -m "Update stock-daily prices"
+            git pull --rebase
+            git push
+          fi
+      - name: Fail if any symbol could not be fetched
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1
