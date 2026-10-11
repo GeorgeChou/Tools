@@ -61,5 +61,5 @@ Limits: prices are end-of-day closes, not live. Returns are price-only and exclu
 dividends. 52-week highs and lows are closing levels, so they differ from intraday
 figures on finance sites. If Yahoo refuses a request, the workflow run fails and the
 page keeps showing the last good data; the "Updated" time on the page shows its age.
-GitHub pauses scheduled workflows after 60 days with no commits to a repo and emails
-the owner; re-enable it from the Actions tab.
+GitHub pauses scheduled workflows after 60 days with no commits to a repo; re-enable
+it from the Actions tab.
