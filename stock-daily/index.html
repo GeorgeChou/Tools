@@ -318,7 +318,7 @@
     var lo = Math.min.apply(null, c), hi = Math.max.apply(null, c);
     var pad = (hi - lo) * 0.08 || hi * 0.02;
     var ymin = lo - pad, ymax = hi + pad;
-    var ticks = niceTicks(ymin, ymax, Math.max(2, Math.floor(H / 60)));
+    var ticks = niceTicks(ymin, ymax, Math.min(6, Math.max(2, Math.floor(H / 60))));
     var tickDigits = ticks.some(function (v) { return v % 1 !== 0; }) ? 2 : 0;
     var endText = fmt(last, dec());
     var widest = Math.max.apply(null, ticks.map(function (v) { return fmt(v, tickDigits).length; }).concat(endText.length));
