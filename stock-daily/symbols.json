@@ -35,5 +35,10 @@
   {"symbol": "4958.TW", "name": "Zhen Ding Technology Holding", "localName": "臻鼎科技控股"},
   {"symbol": "2368.TW", "name": "Gold Circuit Electronics", "localName": "金像電子"},
   {"symbol": "4062.T", "name": "Ibiden", "localName": "イビデン"},
+  {"symbol": "1802.TW", "name": "Taiwan Glass Industrial", "localName": "台灣玻璃工業"},
+  {"symbol": "1815.TWO", "name": "Fulltech Fiber Glass", "localName": "富喬工業"},
+  {"symbol": "5475.TWO", "name": "Glotech Industrial", "localName": "德宏工業"},
+  {"symbol": "8358.TWO", "name": "Co-Tech Development", "localName": "金居開發"},
+  {"symbol": "1303.TW", "name": "Nan Ya Plastics", "localName": "南亞塑膠工業"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
