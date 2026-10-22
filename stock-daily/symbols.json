@@ -42,5 +42,7 @@
   {"symbol": "1303.TW", "name": "Nan Ya Plastics", "localName": "南亞塑膠工業"},
   {"symbol": "2303.TW", "name": "United Microelectronics (UMC)", "localName": "聯華電子"},
   {"symbol": "0981.HK", "name": "SMIC (Hong Kong H-share)", "localName": "中芯國際"},
+  {"symbol": "NVDA", "name": "NVIDIA", "localName": ""},
+  {"symbol": "TSM", "name": "Taiwan Semiconductor Manufacturing (TSMC ADR)", "localName": "台積電 ADR"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]

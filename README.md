@@ -10,6 +10,7 @@ Base URL: `https://georgechou.github.io/Tools/`
 | `stock-info/` | Compact strip: price, change, headline stats | `stock-info/?symbol=NASDAQ:NVDA` |
 | `stock-fundamentals/` | Valuation, margins, financial statements | `stock-fundamentals/?symbol=NASDAQ:NVDA` |
 | `stock-daily/` | Daily-close chart and info strip from price files kept in this repo, for exchanges the TradingView widgets block | `stock-daily/?symbol=4063.T&view=chart` |
+| `stock-trend/` | Up to 5 stocks on one chart as % price change from the same start date (Taiwan and US mixed) | `stock-trend/?symbols=2330.TW,NVDA,3037&range=1y` |
 | `stock-compare/` | Dashboard comparing a group of stocks: performance, returns and risk, fundamentals, link to a benchmark, scorecard and analyst view | `stock-compare/?group=layer1-materials` |
 
 ## Parameters
@@ -68,6 +69,25 @@ figures on finance sites. If Yahoo refuses a request, the workflow run fails and
 page keeps showing the last good data; the "Updated" time on the page shows its age.
 GitHub pauses scheduled workflows after 60 days with no commits to a repo; re-enable
 it from the Actions tab.
+
+## stock-trend
+
+Compares how much up to five stocks rose or fell: every line starts at 0% on the same
+date. Reads the same price files as `stock-daily`, so each symbol must be in
+`stock-daily/symbols.json`. If one is missing, the page names it and links to that file.
+
+- `symbols`: up to 5, comma-separated (default `2330.TW,NVDA`). Accepts Yahoo symbols
+  (`2330.TW`, `6488.TWO`, `NVDA`, `4063.T`), bare Taiwan codes (`2330`, tried as `.TW`
+  then `.TWO`) and TradingView style (`TWSE:2330`, `TPEX:6488`, `NASDAQ:NVDA`).
+- `range`: tab opened first: `1m` `3m` `6m` `ytd` `1y` `3y` `5y` (default `1y`).
+  `5y` starts at the first date all the stocks have in common.
+- `from`: a custom start date `YYYY-MM-DD`; overrides `range`.
+- `theme`: `light` or `dark` (default `light`)
+
+Click a stock in the legend to highlight its line. Hover shows each stock's close and
+change on that day. Each line is in the stock's own currency, so currency moves are not
+included. Stocks on different exchanges have different holidays; on a day one market
+was closed, its last close is used.
 
 ## stock-compare
 

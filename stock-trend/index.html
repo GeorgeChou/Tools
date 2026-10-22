@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Trend</title>
+<!--
+  Price-change comparison of up to five stocks on one chart, for embedding
+  (e.g. in Notion via /embed). Every line starts at 0% on the same date, so the
+  chart shows how much each stock rose or fell from there, in its own currency.
+  Prices come from ../stock-daily/data/<symbol>.json, refreshed by the
+  stock-daily GitHub Action. A symbol must be listed in stock-daily/symbols.json.
+
+  URL parameters:
+    symbols  Up to 5, comma-separated (default 2330.TW,NVDA). Accepted forms:
+               Yahoo symbols   2330.TW  6488.TWO  NVDA  4063.T
+               Taiwan code     2330  (tries .TW, then .TWO)
+               TradingView     TWSE:2330  TPEX:6488  NASDAQ:NVDA  NYSE:TSM
+    range    tab opened first: 1m 3m 6m ytd 1y 3y 5y      (default 1y)
+    from     custom start date YYYY-MM-DD; overrides range
+    theme    light or dark                                 (default light)
+  Example: ?symbols=2330.TW,NVDA,2317,3037&range=ytd
+-->
+<style>
+  :root {
+    --surface: #ffffff;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --text-3: #76746e;
+    --grid: #e9e8e4;
+    --axis: #c3c2b7;
+    --wash: #f1f0ec;
+    --up: #0a7a3d;
+    --down: #c5362f;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #6250d6;
+  }
+  :root[data-theme="dark"] {
+    --surface: #1a1a19;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #9b9a92;
+    --grid: #33332f;
+    --axis: #45453f;
+    --wash: #2b2b28;
+    --up: #4cc38a;
+    --down: #f0817b;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #9085e9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--surface); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans TC", sans-serif;
+    display: flex; flex-direction: column;
+    padding: 12px 16px; overflow: hidden;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  #chart { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 6px 10px; flex-wrap: wrap; }
+  .title { font-size: 13px; color: var(--text-2); }
+  .title b { color: var(--text); font-weight: 650; }
+  .tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+  .tabs button {
+    font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--text-2); background: none; border: 0; border-radius: 6px;
+    padding: 4px 9px; cursor: pointer;
+  }
+  .tabs button:hover { color: var(--text); }
+  .tabs button[aria-pressed="true"] { background: var(--wash); color: var(--text); }
+  button:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
+
+  .legend { flex: none; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    font: inherit; font-size: 12.5px; color: var(--text); background: none; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    border: 1px solid var(--grid); border-radius: 999px; padding: 3px 10px 3px 8px;
+  }
+  .chip:hover { border-color: var(--axis); }
+  .chip[aria-pressed="true"] { background: var(--wash); border-color: var(--axis); }
+  .chip .sym { font-weight: 650; }
+  .chip .nm { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15em; }
+  .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+
+  .plot { flex: 1 1 auto; min-height: 0; position: relative; margin-top: 8px; }
+  svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .zero { stroke: var(--axis); stroke-width: 1.25; }
+  .tick { fill: var(--text-3); font-size: 11px; }
+  .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: opacity .15s; }
+  .series.faded { opacity: 0.18; }
+  .series.on { stroke-width: 2.75; }
+  .endlabel { font-size: 11px; font-weight: 650; }
+  .cross { stroke: var(--text-3); stroke-width: 1; }
+  .dot { stroke: var(--surface); stroke-width: 2; }
+  .tip {
+    position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap; z-index: 5;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--grid); border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+    padding: 6px 9px; font-size: 12px;
+  }
+  .tip .d { color: var(--text-3); margin-bottom: 3px; }
+  .tip .r { display: flex; align-items: center; gap: 6px; }
+  .tip .r .n { flex: 1; padding-right: 14px; }
+  .foot { flex: none; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+  .warn { flex: none; font-size: 12px; color: var(--down); margin-top: 6px; }
+  .warn a { color: inherit; }
+  .msg { color: var(--text-2); padding: 16px 0; }
+  .msg a { color: var(--s1); }
+</style>
+</head>
+<body>
+<div id="chart" hidden>
+  <div class="bar">
+    <div class="title" id="title"></div>
+    <div class="tabs" id="tabs" role="group" aria-label="Date range"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="plot" id="plot">
+    <svg id="svg" role="img"></svg>
+    <div class="tip" id="tip" hidden></div>
+  </div>
+  <div class="warn" id="warn" hidden></div>
+  <div class="foot" id="foot"></div>
+</div>
+<div class="msg" id="msg" hidden></div>
+
+<script>
+(function () {
+  var MAX = 5;
+  var DATA_DIR = "../stock-daily/data/";
+  var EDIT_URL = "https://github.com/GeorgeChou/Tools/edit/main/stock-daily/symbols.json";
+  var RANGES = ["1m", "3m", "6m", "ytd", "1y", "3y", "5y"];
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var NS = "http://www.w3.org/2000/svg";
+  var $ = function (id) { return document.getElementById(id); };
+
+  var q = new URLSearchParams(location.search);
+  if (q.get("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+  var range = (q.get("range") || "1y").toLowerCase();
+  if (RANGES.indexOf(range) < 0) range = "1y";
+  var from = q.get("from") || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) from = "";
+  if (from) range = "";
+
+  var raw = (q.get("symbols") || q.get("symbol") || q.get("s") || "2330.TW,NVDA")
+    .split(/[,\s;]+/).filter(Boolean);
+  var requested = [];
+  raw.forEach(function (s) {
+    var c = candidates(s);
+    if (c && requested.every(function (r) { return r.input.toUpperCase() !== s.toUpperCase(); })) requested.push({ input: s, tries: c });
+  });
+  var tooMany = requested.length > MAX;
+  requested = requested.slice(0, MAX);
+  if (!requested.length) { fail("No valid symbol. Use for example ?symbols=2330.TW,NVDA"); return; }
+
+  // Turn what the user typed into the Yahoo symbols to try, in order.
+  function candidates(s) {
+    s = s.trim().toUpperCase();
+    var m = s.match(/^([A-Z]+):(.+)$/);
+    if (m) {
+      var ex = m[1], t = m[2];
+      if (ex === "TWSE" || ex === "TWE") s = t + ".TW";
+      else if (ex === "TPEX" || ex === "OTC") s = t + ".TWO";
+      else if (ex === "TSE" || ex === "TYO") s = t + ".T";
+      else if (ex === "HKEX") s = t + ".HK";
+      else s = t; // NASDAQ, NYSE, AMEX ...
+    }
+    if (!/^[A-Z0-9.\-^=]{1,15}$/.test(s)) return null;
+    if (/^\d{4,6}[A-Z]?$/.test(s)) return [s + ".TW", s + ".TWO"]; // bare Taiwan code
+    return [s];
+  }
+  function file(sym) { return DATA_DIR + encodeURIComponent(sym.replace("^", "idx-")) + ".json"; }
+  function getJson(url) {
+    return fetch(url, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function load(req) {
+    var i = 0;
+    function next() {
+      if (i >= req.tries.length) return Promise.resolve(null);
+      return getJson(file(req.tries[i++])).catch(next);
+    }
+    return next();
+  }
+
+  var series = [], missing = [], hi = -1; // hi = highlighted series index
+
+  Promise.all(requested.map(load)).then(function (results) {
+    results.forEach(function (d, k) {
+      if (!d || !d.dates || d.dates.length < 2) { missing.push(requested[k].input); return; }
+      d.t = d.dates.map(function (s) { return Date.parse(s + "T00:00:00Z"); });
+      d.code = d.symbol.replace(/\.(TW|TWO|T|HK|KS|SZ|SS)$/, "");
+      d.color = "var(--s" + (series.length + 1) + ")";
+      series.push(d);
+    });
+    if (!series.length) {
+      failHtml("No price data for " + esc(missing.join(", ")) + ". Each symbol must be listed in " +
+        "<a href=\"" + EDIT_URL + "\" target=\"_blank\" rel=\"noopener\">stock-daily/symbols.json</a> in the Tools repo; " +
+        "prices appear a few minutes after you commit it.");
+      return;
+    }
+    document.title = series.map(function (s) { return s.code; }).join(" vs ");
+    var notes = [];
+    if (missing.length) notes.push("No data for " + esc(missing.join(", ")) + ": add to <a href=\"" + EDIT_URL + "\" target=\"_blank\" rel=\"noopener\">symbols.json</a>.");
+    if (tooMany) notes.push("Only the first " + MAX + " symbols are shown.");
+    if (notes.length) { $("warn").innerHTML = notes.join(" "); $("warn").hidden = false; }
+    $("chart").hidden = false;
+    buildTabs();
+    draw();
+    window.addEventListener("resize", draw);
+  });
+
+  // ---------- helpers ----------
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function fail(text) { $("chart").hidden = true; $("msg").hidden = false; $("msg").textContent = text; }
+  function failHtml(html) { $("chart").hidden = true; $("msg").hidden = false; $("msg").innerHTML = html; }
+  function fmt(v, d) { return v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function pct(v, d) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), d == null ? 1 : d) + "%"; }
+  function cls(v) { return v > 0 ? "up" : v < 0 ? "down" : ""; }
+  function niceDate(s) { return MONTHS[+s.slice(5, 7) - 1] + " " + (+s.slice(8, 10)) + ", " + s.slice(0, 4); }
+  function iso(t) { return new Date(t).toISOString().slice(0, 10); }
+  function shiftMonths(dateStr, months) {
+    var d = new Date(dateStr + "T00:00:00Z");
+    d.setUTCMonth(d.getUTCMonth() - months);
+    return d.toISOString().slice(0, 10);
+  }
+  // Last index whose date is on or before t (-1 if none).
+  function atOrBefore(s, t) {
+    var lo = 0, hi_ = s.t.length - 1, ans = -1;
+    while (lo <= hi_) { var mid = (lo + hi_) >> 1; if (s.t[mid] <= t) { ans = mid; lo = mid + 1; } else hi_ = mid - 1; }
+    return ans;
+  }
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function div(c, t) { var e = document.createElement("div"); if (c) e.className = c; if (t != null) e.textContent = t; return e; }
+  function span(c, t) { var e = document.createElement("span"); if (c) e.className = c; if (t != null) e.textContent = t; return e; }
+
+  // The common start date: every line is 0% here.
+  function baseDate() {
+    var latest = Math.max.apply(null, series.map(function (s) { return s.t[s.t.length - 1]; }));
+    var earliestCommon = Math.max.apply(null, series.map(function (s) { return s.t[0]; }));
+    var last = iso(latest), start;
+    if (from) start = from;
+    else if (range === "5y") start = iso(earliestCommon);
+    else if (range === "ytd") start = (+last.slice(0, 4) - 1) + "-12-31";
+    else start = shiftMonths(last, { "1m": 1, "3m": 3, "6m": 6, "1y": 12, "3y": 36 }[range]);
+    var t0 = Date.parse(start + "T00:00:00Z");
+    return { t0: Math.max(t0, earliestCommon), t1: latest };
+  }
+
+  // ---------- controls ----------
+  function buildTabs() {
+    var tabs = $("tabs");
+    RANGES.forEach(function (r) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = r.toUpperCase();
+      b.setAttribute("aria-pressed", r === range ? "true" : "false");
+      b.addEventListener("click", function () {
+        range = r; from = "";
+        Array.prototype.forEach.call(tabs.children, function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        draw();
+      });
+      tabs.appendChild(b);
+    });
+    var upd = series.map(function (s) { return s.updated; }).sort()[0] || "";
+    $("foot").textContent = "% change in closing price from the start date, each in its own currency (" +
+      series.map(function (s) { return s.code + " " + (s.currency || "?"); }).join(", ") +
+      "). Daily closes, not live; excludes dividends. Source: Yahoo Finance" +
+      (upd ? ", updated " + upd.replace("T", " ").replace("Z", " UTC") : "") + ".";
+  }
+
+  function legend(rets) {
+    var box = $("legend"); box.textContent = "";
+    series.forEach(function (s, k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.setAttribute("aria-pressed", k === hi ? "true" : "false");
+      b.title = s.name + (s.localName ? " " + s.localName : "") + " (" + s.symbol + (s.exchange ? ", " + s.exchange : "") + ")";
+      var sw = span("sw"); sw.style.background = s.color; b.appendChild(sw);
+      b.appendChild(span("sym", s.code));
+      b.appendChild(span("nm", s.localName || s.name));
+      if (rets[k] != null) b.appendChild(span("num " + cls(rets[k]), pct(rets[k])));
+      b.addEventListener("click", function () { hi = hi === k ? -1 : k; draw(); });
+      box.appendChild(b);
+    });
+  }
+
+  function niceTicks(min, max, count) {
+    var spanV = max - min || 1;
+    var rawStep = spanV / count, mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    var norm = rawStep / mag, step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+    var ticks = [], t = Math.ceil(min / step) * step;
+    for (; t <= max + step * 1e-6; t += step) ticks.push(+t.toFixed(6));
+    return ticks;
+  }
+
+  // ---------- chart ----------
+  var geo = null;
+
+  function draw() {
+    var b = baseDate(), t0 = b.t0, t1 = b.t1;
+    // Each line: its close at/before the start date is the base; points from there on.
+    var lines = series.map(function (s) {
+      var i0 = atOrBefore(s, t0);
+      if (i0 < 0) i0 = 0;
+      var base = s.close[i0], pts = [];
+      for (var i = i0; i < s.t.length; i++) pts.push([Math.max(s.t[i], t0), (s.close[i] / base - 1) * 100, i]);
+      return { s: s, base: base, i0: i0, pts: pts };
+    });
+    var rets = lines.map(function (L) { return L.pts.length ? L.pts[L.pts.length - 1][1] : null; });
+    legend(rets);
+
+    var startStr = iso(t0);
+    var t = $("title"); t.textContent = "";
+    t.appendChild(document.createTextNode("Price change since "));
+    var bb = document.createElement("b"); bb.textContent = niceDate(startStr); t.appendChild(bb);
+
+    var svg = $("svg"), plot = $("plot");
+    var W = plot.clientWidth, H = plot.clientHeight;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    $("tip").hidden = true;
+    if (W < 60 || H < 60) return;
+    svg.setAttribute("aria-label", "Percent change since " + niceDate(startStr) + ": " +
+      lines.map(function (L, k) { return L.s.code + " " + pct(rets[k]); }).join(", "));
+
+    var lo = 0, hiV = 0;
+    lines.forEach(function (L) { L.pts.forEach(function (p) { if (p[1] < lo) lo = p[1]; if (p[1] > hiV) hiV = p[1]; }); });
+    var pad = (hiV - lo) * 0.06 || 1;
+    var ymin = lo - pad, ymax = hiV + pad;
+    var ticks = niceTicks(ymin, ymax, Math.min(7, Math.max(2, Math.floor(H / 55))));
+    var tickDigits = ticks.some(function (v) { return v % 1 !== 0; }) ? 1 : 0;
+    var labelW = Math.max.apply(null, ticks.map(function (v) { return pct(v, tickDigits).length; })
+      .concat(rets.map(function (r) { return r == null ? 0 : pct(r).length; })));
+    var m = { t: 8, r: labelW * 6.6 + 14, b: 22, l: 2 };
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var x = function (tt) { return m.l + (t1 === t0 ? pw / 2 : pw * (tt - t0) / (t1 - t0)); };
+    var y = function (v) { return m.t + ph * (1 - (v - ymin) / (ymax - ymin)); };
+
+    // grid + y labels
+    ticks.forEach(function (v) {
+      svg.appendChild(el("line", { class: v === 0 ? "zero" : "gridline", x1: m.l, x2: m.l + pw, y1: y(v), y2: y(v) }));
+    });
+    // end labels, nudged apart so they do not overlap
+    var ends = lines.map(function (L, k) {
+      return { k: k, y: L.pts.length ? y(rets[k]) : null };
+    }).filter(function (e) { return e.y != null; }).sort(function (a, b2) { return a.y - b2.y; });
+    for (var e = 1; e < ends.length; e++) if (ends[e].y - ends[e - 1].y < 13) ends[e].y = ends[e - 1].y + 13;
+    ticks.forEach(function (v) {
+      var yy = y(v);
+      if (ends.every(function (en) { return Math.abs(en.y - yy) > 12; }))
+        svg.appendChild(el("text", { class: "tick num", x: m.l + pw + 8, y: yy + 4 }, pct(v, tickDigits)));
+    });
+
+    // x labels
+    var days = (t1 - t0) / 864e5, byYear = days > 800, lastKey = "", lastX = -1e9;
+    var ref = lines.reduce(function (a, L) { return L.pts.length > a.pts.length ? L : a; }, lines[0]);
+    ref.pts.forEach(function (p, j) {
+      var ds = ref.s.dates[p[2]];
+      var key = byYear ? ds.slice(0, 4) : ds.slice(0, 7);
+      if (key === lastKey) return;
+      lastKey = key;
+      if (j === 0 && ref.pts.length > 30) return;
+      var label = byYear ? key : (ds.slice(5, 7) === "01" ? "Jan " + key.slice(0, 4) : MONTHS[+ds.slice(5, 7) - 1]);
+      if (days < 45) label = MONTHS[+ds.slice(5, 7) - 1] + " " + (+ds.slice(8, 10));
+      var xi = x(p[0]);
+      if (xi - lastX < 46 || xi > m.l + pw - 18) return;
+      lastX = xi;
+      var atEdge = xi < m.l + 20;
+      svg.appendChild(el("text", { class: "tick", x: atEdge ? m.l : xi, y: H - 6, "text-anchor": atEdge ? "start" : "middle" }, label));
+    });
+
+    // series: highlighted one drawn last
+    var order = lines.map(function (_, k) { return k; });
+    if (hi >= 0) { order.splice(hi, 1); order.push(hi); }
+    order.forEach(function (k) {
+      var L = lines[k]; if (!L.pts.length) return;
+      var d = "";
+      L.pts.forEach(function (p, j) { d += (j ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1); });
+      var c = "series" + (hi >= 0 ? (k === hi ? " on" : " faded") : "");
+      svg.appendChild(el("path", { class: c, d: d, stroke: L.s.color }));
+    });
+    ends.forEach(function (en) {
+      var L = lines[en.k];
+      var txt = el("text", { class: "endlabel num", x: m.l + pw + 8, y: en.y + 4, fill: L.s.color }, pct(rets[en.k]));
+      if (hi >= 0 && en.k !== hi) txt.setAttribute("opacity", "0.35");
+      svg.appendChild(txt);
+    });
+
+    var cross = el("line", { class: "cross", y1: m.t, y2: m.t + ph, visibility: "hidden" });
+    svg.appendChild(cross);
+    var dots = lines.map(function (L) {
+      var c = el("circle", { class: "dot", r: 4, fill: L.s.color, visibility: "hidden" });
+      svg.appendChild(c); return c;
+    });
+    geo = { lines: lines, x: x, y: y, m: m, pw: pw, W: W, t0: t0, t1: t1, cross: cross, dots: dots };
+  }
+
+  function hover(ev) {
+    if (!geo) return;
+    var g = geo, rect = $("plot").getBoundingClientRect();
+    var px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    var tt = g.t0 + (Math.max(g.m.l, Math.min(g.m.l + g.pw, px)) - g.m.l) / g.pw * (g.t1 - g.t0);
+    var cx = g.x(tt), rows = [], dateShown = null, topY = Infinity;
+    g.lines.forEach(function (L, k) {
+      var i = atOrBefore(L.s, tt);
+      if (i < L.i0 || i < 0) { g.dots[k].setAttribute("visibility", "hidden"); return; }
+      var v = (L.s.close[i] / L.base - 1) * 100, cy = g.y(v);
+      if (!dateShown || L.s.dates[i] > dateShown) dateShown = L.s.dates[i];
+      g.dots[k].setAttribute("cx", g.x(Math.max(L.s.t[i], g.t0))); g.dots[k].setAttribute("cy", cy);
+      g.dots[k].setAttribute("visibility", "visible");
+      if (cy < topY) topY = cy;
+      rows.push({ L: L, v: v, close: L.s.close[i] });
+    });
+    g.cross.setAttribute("x1", cx); g.cross.setAttribute("x2", cx); g.cross.setAttribute("visibility", "visible");
+    rows.sort(function (a, b) { return b.v - a.v; });
+    var tip = $("tip"); tip.textContent = ""; tip.hidden = false;
+    tip.appendChild(div("d", dateShown ? niceDate(dateShown) : ""));
+    rows.forEach(function (r) {
+      var row = div("r");
+      var sw = span("sw"); sw.style.background = r.L.s.color; row.appendChild(sw);
+      row.appendChild(span("n", r.L.s.code + "  " + fmt(r.close, r.close >= 1000 ? 0 : 2) + " " + (r.L.s.currency || "")));
+      row.appendChild(span("num " + cls(r.v), pct(r.v)));
+      tip.appendChild(row);
+    });
+    var tw = tip.offsetWidth, th = tip.offsetHeight, left = cx + 14;
+    if (left + tw > g.W) left = cx - 14 - tw;
+    var top = Math.max(0, Math.min(topY - 20, $("plot").clientHeight - th));
+    tip.style.transform = "translate(" + Math.max(0, left) + "px," + top + "px)";
+  }
+  function leave() {
+    if (!geo) return;
+    geo.cross.setAttribute("visibility", "hidden");
+    geo.dots.forEach(function (d) { d.setAttribute("visibility", "hidden"); });
+    $("tip").hidden = true;
+  }
+  var plotEl = $("plot");
+  plotEl.addEventListener("mousemove", hover);
+  plotEl.addEventListener("mouseleave", leave);
+  plotEl.addEventListener("touchstart", hover, { passive: true });
+  plotEl.addEventListener("touchmove", hover, { passive: true });
+  plotEl.addEventListener("touchend", leave);
+})();
+</script>
+</body>
+</html>
