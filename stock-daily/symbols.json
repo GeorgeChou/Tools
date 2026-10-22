@@ -32,5 +32,8 @@
   {"symbol": "005930.KS", "name": "Samsung Electronics", "localName": "삼성전자"},
   {"symbol": "300750.SZ", "name": "CATL (Shenzhen A-share)", "localName": "寧德時代"},
   {"symbol": "3750.HK", "name": "CATL (Hong Kong H-share)", "localName": "寧德時代"},
+  {"symbol": "4958.TW", "name": "Zhen Ding Technology Holding", "localName": "臻鼎科技控股"},
+  {"symbol": "2368.TW", "name": "Gold Circuit Electronics", "localName": "金像電子"},
+  {"symbol": "4062.T", "name": "Ibiden", "localName": "イビデン"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
