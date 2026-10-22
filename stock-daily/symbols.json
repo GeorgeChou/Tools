@@ -44,5 +44,6 @@
   {"symbol": "0981.HK", "name": "SMIC (Hong Kong H-share)", "localName": "中芯國際"},
   {"symbol": "NVDA", "name": "NVIDIA", "localName": ""},
   {"symbol": "TSM", "name": "Taiwan Semiconductor Manufacturing (TSMC ADR)", "localName": "台積電 ADR"},
+  {"symbol": "GFS", "name": "GlobalFoundries", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
