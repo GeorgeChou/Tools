@@ -63,5 +63,7 @@
   {"symbol": "6278.T", "name": "Union Tool", "localName": "ユニオンツール"},
   {"symbol": "301200.SZ", "name": "Han's CNC Technology", "localName": "大族數控"},
   {"symbol": "MKSI", "name": "MKS (incl. Atotech)", "localName": ""},
+  {"symbol": "COHR", "name": "Coherent", "localName": ""},
+  {"symbol": "LITE", "name": "Lumentum", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
