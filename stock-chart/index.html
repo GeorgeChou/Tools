@@ -14,7 +14,7 @@
   Stock chart for embedding (e.g. in Notion via /embed).
   URL parameters:
     symbol  TradingView symbol, EXCHANGE:TICKER   (default NASDAQ:AAPL)
-    range   tab opened first: 1d 1m 3m 1y 5y all  (default 1y)
+    range   tab opened first: 1d 1m 3m 1y 2y 3y 5y all  (default 1y)
     theme   light or dark                         (default light)
   Example: ?symbol=NASDAQ:NVDA&range=3m&theme=dark
 -->
@@ -25,7 +25,7 @@
   const q = new URLSearchParams(location.search);
   const symbol = (q.get("symbol") || "NASDAQ:AAPL").toUpperCase();
   const theme = q.get("theme") === "dark" ? "dark" : "light";
-  const ranges = { "1d": "1d|1", "1m": "1m|30", "3m": "3m|60", "1y": "12m|1D", "5y": "60m|1W", "all": "all|1M" };
+  const ranges = { "1d": "1d|1", "1m": "1m|30", "3m": "3m|60", "1y": "12m|1D", "2y": "24m|1W", "3y": "36m|1W", "5y": "60m|1W", "all": "all|1M" };
   const first = ranges[(q.get("range") || "1y").toLowerCase()] || ranges["1y"];
   // The widget opens on the first range in the list, so put the requested one first.
   const dateRanges = [first, ...Object.values(ranges).filter(r => r !== first)];

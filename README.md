@@ -20,7 +20,7 @@ The three TradingView tools (`stock-chart`, `stock-info`, `stock-fundamentals`) 
 - `symbol`: TradingView `EXCHANGE:TICKER` (default `NASDAQ:AAPL`)
 - `theme`: `light` or `dark` (default `light`)
 
-`stock-chart` also takes `range`: `1d` `1m` `3m` `1y` `5y` `all` (default `1y`).
+`stock-chart` also takes `range`: `1d` `1m` `3m` `1y` `2y` `3y` `5y` `all` (default `1y`).
 
 ## Which tool for which exchange
 
