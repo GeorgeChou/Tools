@@ -67,5 +67,6 @@
   {"symbol": "LITE", "name": "Lumentum", "localName": ""},
   {"symbol": "3081.TWO", "name": "LandMark Optoelectronics", "localName": "聯亞光電"},
   {"symbol": "4979.TWO", "name": "LuxNet", "localName": "華星光通"},
+  {"symbol": "3008.TW", "name": "Largan Precision", "localName": "大立光"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
