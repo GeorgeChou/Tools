@@ -43,7 +43,7 @@ A chart and info strip drawn from price files in this repo, with no third-party 
 
 - `symbol`: Yahoo Finance symbol, e.g. `4063.T` (default `4063.T`). It must be listed in `stock-daily/symbols.json`.
 - `view`: `chart`, `info` or `both` (default `both`)
-- `range`: tab opened first: `1m` `3m` `6m` `ytd` `1y` `5y` (default `1y`)
+- `range`: tab opened first: `1m` `3m` `6m` `ytd` `1y` `2y` `3y` `5y` (default `1y`)
 - `theme`: `light` or `dark` (default `light`)
 
 How it works:
