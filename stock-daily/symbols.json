@@ -68,5 +68,13 @@
   {"symbol": "3081.TWO", "name": "LandMark Optoelectronics", "localName": "聯亞光電"},
   {"symbol": "4979.TWO", "name": "LuxNet", "localName": "華星光通"},
   {"symbol": "3008.TW", "name": "Largan Precision", "localName": "大立光"},
+  {"symbol": "AVGO", "name": "Broadcom", "localName": ""},
+  {"symbol": "AMD", "name": "Advanced Micro Devices (AMD)", "localName": ""},
+  {"symbol": "2454.TW", "name": "MediaTek", "localName": "聯發科技"},
+  {"symbol": "3661.TW", "name": "Alchip Technologies", "localName": "世芯-KY"},
+  {"symbol": "3443.TW", "name": "Global Unichip (GUC)", "localName": "創意電子"},
+  {"symbol": "5274.TWO", "name": "ASPEED Technology", "localName": "信驊科技"},
+  {"symbol": "MRVL", "name": "Marvell Technology", "localName": ""},
+  {"symbol": "INTC", "name": "Intel", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
