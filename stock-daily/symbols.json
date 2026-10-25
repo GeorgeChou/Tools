@@ -76,5 +76,6 @@
   {"symbol": "5274.TWO", "name": "ASPEED Technology", "localName": "信驊科技"},
   {"symbol": "MRVL", "name": "Marvell Technology", "localName": ""},
   {"symbol": "INTC", "name": "Intel", "localName": ""},
+  {"symbol": "3529.TWO", "name": "eMemory Technology", "localName": "力旺電子"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
