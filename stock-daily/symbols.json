@@ -86,5 +86,7 @@
   {"symbol": "8150.TW", "name": "ChipMOS Technologies", "localName": "南茂科技"},
   {"symbol": "6857.T", "name": "Advantest", "localName": "アドバンテスト"},
   {"symbol": "TER", "name": "Teradyne", "localName": ""},
+  {"symbol": "SNPS", "name": "Synopsys", "localName": ""},
+  {"symbol": "CDNS", "name": "Cadence Design Systems", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
