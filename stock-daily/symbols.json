@@ -84,5 +84,7 @@
   {"symbol": "285A.T", "name": "Kioxia Holdings", "localName": "キオクシア"},
   {"symbol": "SNDK", "name": "SanDisk", "localName": ""},
   {"symbol": "8150.TW", "name": "ChipMOS Technologies", "localName": "南茂科技"},
+  {"symbol": "6857.T", "name": "Advantest", "localName": "アドバンテスト"},
+  {"symbol": "TER", "name": "Teradyne", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
