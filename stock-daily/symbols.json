@@ -88,5 +88,14 @@
   {"symbol": "TER", "name": "Teradyne", "localName": ""},
   {"symbol": "SNPS", "name": "Synopsys", "localName": ""},
   {"symbol": "CDNS", "name": "Cadence Design Systems", "localName": ""},
+  {"symbol": "VRT", "name": "Vertiv", "localName": ""},
+  {"symbol": "SU.PA", "name": "Schneider Electric", "localName": ""},
+  {"symbol": "ETN", "name": "Eaton", "localName": ""},
+  {"symbol": "ABBN.SW", "name": "ABB", "localName": ""},
+  {"symbol": "SIE.DE", "name": "Siemens", "localName": ""},
+  {"symbol": "LR.PA", "name": "Legrand", "localName": ""},
+  {"symbol": "JCI", "name": "Johnson Controls", "localName": ""},
+  {"symbol": "TT", "name": "Trane Technologies", "localName": ""},
+  {"symbol": "2301.TW", "name": "Lite-On Technology", "localName": "光寶科技"},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
 ]
