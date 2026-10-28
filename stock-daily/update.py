@@ -13,6 +13,7 @@ import json
 import math
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -121,6 +122,21 @@ def fetch(entry, sess, previous):
     return out
 
 
+def fetch_with_retry(entry, sess, previous, attempts=3):
+    """Yahoo occasionally returns an empty history for a symbol that works fine a
+    minute later (2344.TW came back with 0 rows on 2026-10-27). Retry before
+    counting it as a failure, so one blip does not fail the whole run."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return fetch(entry, sess, previous)
+        except Exception as err:  # noqa: BLE001
+            if attempt == attempts:
+                raise
+            wait = 10 * attempt
+            print(f"  retry {entry['symbol']} in {wait}s (attempt {attempt} failed: {err})")
+            time.sleep(wait)
+
+
 def fetch_fx(currencies, sess, previous):
     """Units of each currency per one US dollar."""
     rates = dict(previous.get("rates", {}))
@@ -156,7 +172,7 @@ def main():
         path = DATA / (entry["symbol"].replace("^", "idx-") + ".json")
         previous = read_json(path)
         try:
-            out = fetch(entry, sess, previous)
+            out = fetch_with_retry(entry, sess, previous)
         except Exception as err:  # noqa: BLE001
             # Keep the previous file so the pages keep showing the last good data.
             print(f"FAILED {entry['symbol']}: {err}")
