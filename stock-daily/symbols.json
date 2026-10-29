@@ -97,5 +97,8 @@
   {"symbol": "JCI", "name": "Johnson Controls", "localName": ""},
   {"symbol": "TT", "name": "Trane Technologies", "localName": ""},
   {"symbol": "2301.TW", "name": "Lite-On Technology", "localName": "光寶科技"},
-  {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"}
+  {"symbol": "GOOGL", "name": "Alphabet (Google)", "localName": ""},
+  {"symbol": "MSFT", "name": "Microsoft", "localName": ""},
+  {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"},
+  {"symbol": "^NDX", "name": "Nasdaq-100 Index", "localName": "", "kind": "index"}
 ]
