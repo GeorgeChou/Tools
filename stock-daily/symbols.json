@@ -99,6 +99,8 @@
   {"symbol": "2301.TW", "name": "Lite-On Technology", "localName": "光寶科技"},
   {"symbol": "GOOGL", "name": "Alphabet (Google)", "localName": ""},
   {"symbol": "MSFT", "name": "Microsoft", "localName": ""},
+  {"symbol": "RBRK", "name": "Rubrik", "localName": ""},
+  {"symbol": "CVLT", "name": "Commvault", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"},
   {"symbol": "^NDX", "name": "Nasdaq-100 Index", "localName": "", "kind": "index"}
 ]
