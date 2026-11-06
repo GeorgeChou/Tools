@@ -296,6 +296,10 @@
     var money = function (v) { return num(v) ? capText(Math.abs(v), fc).replace(/^(\S+ )?/, (v < 0 ? "−" : "") + "$1") : null; };
     var netCash = num(f.totalCash) && num(f.totalDebt) ? f.totalCash - f.totalDebt : null;
     var upside = num(f.targetMean) && last ? (f.targetMean / last - 1) * 100 : null;
+    // FCF yield only when the statements and the share price use the same currency (not for ADRs).
+    var fcfYield = num(f.freeCashflow) && data.marketCap && (!f.financialCurrency || f.financialCurrency === data.currency)
+      ? f.freeCashflow / data.marketCap * 100 : null;
+    var eps = function (v) { return num(v) ? fmt(v, Math.abs(v) >= 1000 ? 0 : 2) : null; };
     var rating = f.recommendation && f.recommendation !== "none"
       ? f.recommendation.replace(/_/g, " ").replace(/^./, function (ch) { return ch.toUpperCase(); }) : null;
     var groups = [
@@ -305,20 +309,32 @@
         ["P/E, forward", mult(f.peForward)],
         ["EV / EBITDA", mult(f.evToEbitda)],
         ["Price / sales", mult(f.priceToSales)],
-        ["Price / book", mult(f.priceToBook)]]],
+        ["Price / book", mult(f.priceToBook)],
+        ["FCF yield", fcfYield != null ? fmt(fcfYield, 1) + "%" : null, fcfYield],
+        ["EPS, trailing", eps(f.epsTrailing)],
+        ["EPS, forward", eps(f.epsForward)]]],
       ["Profitability (last 12 months)", [
         ["Gross margin", share(f.grossMargin)],
         ["Operating margin", share(f.operatingMargin)],
         ["Net margin", share(f.netMargin)],
-        ["Return on equity", share(f.returnOnEquity)]]],
-      ["Growth and balance sheet", [
+        ["Return on equity", share(f.returnOnEquity)],
+        ["Return on assets", share(f.returnOnAssets)]]],
+      ["Growth and cash flow", [
         ["Revenue, 12 mo", money(f.revenue)],
         ["Revenue growth, YoY", num(f.revenueGrowth) ? pct(f.revenueGrowth * 100) : null, f.revenueGrowth],
+        ["Earnings growth, YoY", num(f.earningsGrowth) ? pct(f.earningsGrowth * 100) : null, f.earningsGrowth],
+        ["EBITDA, 12 mo", money(f.ebitda)],
+        ["Operating cash flow", money(f.operatingCashflow)],
+        ["Free cash flow", money(f.freeCashflow)]]],
+      ["Balance sheet", [
         ["Cash", money(f.totalCash)],
         ["Debt", money(f.totalDebt)],
-        [netCash != null && netCash < 0 ? "Net debt" : "Net cash", netCash != null ? money(Math.abs(netCash)) : null]]],
+        [netCash != null && netCash < 0 ? "Net debt" : "Net cash", netCash != null ? money(Math.abs(netCash)) : null],
+        ["Debt / equity", num(f.debtToEquityPct) ? fmt(f.debtToEquityPct / 100, 2) + "×" : null],
+        ["Current ratio", num(f.currentRatio) ? fmt(f.currentRatio, 2) + "×" : null]]],
       ["Dividend and analysts", [
         ["Dividend yield", num(f.dividendYieldPct) ? fmt(f.dividendYieldPct, 2) + "%" : null],
+        ["Payout ratio", share(f.payoutRatio)],
         ["Rating", rating],
         ["Analysts", num(f.analystCount) ? fmt(f.analystCount, 0) : null],
         ["Average target", num(f.targetMean) ? fmt(f.targetMean, f.targetMean >= 1000 ? 0 : 2) : null],
@@ -339,7 +355,7 @@
       box.appendChild(sec);
     });
     var when = (data.fundamentalsUpdated || data.updated || "").replace("T", " ").replace("Z", " UTC");
-    box.appendChild(div("foot", "Source: Yahoo Finance, as supplied; refreshed " + when + ". Ratios use the latest reported 12 months; forward P/E uses analysts' forecasts. Amounts in " + (fc || "local currency") + ". Revenue growth is the latest quarter against a year earlier."));
+    box.appendChild(div("foot", "Source: Yahoo Finance, as supplied; refreshed " + when + ". Ratios use the latest reported 12 months; forward P/E and EPS use analysts' forecasts. FCF yield is free cash flow over market cap. Amounts in " + (fc || "local currency") + ". Growth compares the latest quarter with a year earlier."));
   }
 
   // ---------- chart ----------
