@@ -102,5 +102,8 @@
   {"symbol": "RBRK", "name": "Rubrik", "localName": ""},
   {"symbol": "CVLT", "name": "Commvault", "localName": ""},
   {"symbol": "^SOX", "name": "PHLX Semiconductor Index", "localName": "", "kind": "index"},
-  {"symbol": "^NDX", "name": "Nasdaq-100 Index", "localName": "", "kind": "index"}
+  {"symbol": "^NDX", "name": "Nasdaq-100 Index", "localName": "", "kind": "index"},
+  {"symbol": "603986.SS", "name": "GigaDevice Semiconductor", "localName": "兆易创新"},
+  {"symbol": "688766.SS", "name": "Puya Semiconductor", "localName": "普冉半导体"},
+  {"symbol": "IFX.DE", "name": "Infineon Technologies", "localName": ""}
 ]
