@@ -33,8 +33,11 @@ is only available on TradingView". `stock-fundamentals` works for Tokyo symbols.
 | US (`NASDAQ:`) | `stock-chart` | `stock-info` | `stock-fundamentals` |
 | Taipei Exchange (`TPEX:`) | `stock-chart` | `stock-info` | `stock-fundamentals` |
 | Tokyo (`TSE:`) | `stock-daily` (`view=chart`) | `stock-daily` (`view=info`) | `stock-fundamentals` |
+| Taiwan Stock Exchange (`.TW`) | `stock-daily` (`view=chart`) | `stock-daily` (`view=info`) | `stock-daily` (`view=fundamentals`) |
 
 Checked on 2026-10-11 with `NASDAQ:ENTG`, `TPEX:6488` and `TSE:4063`, `4004`, `2802`, `4186`, `3436`.
+`stock-fundamentals` shows nothing for Taiwan Stock Exchange symbols (`TWSE:2344`, `TWSE:2337`),
+found 2026-11-06; use `stock-daily/?symbol=2344.TW&view=fundamentals` instead.
 Other exchanges are untested: open the embed URL in a browser before relying on it.
 
 ## stock-daily
@@ -42,7 +45,8 @@ Other exchanges are untested: open the embed URL in a browser before relying on 
 A chart and info strip drawn from price files in this repo, with no third-party widget.
 
 - `symbol`: Yahoo Finance symbol, e.g. `4063.T` (default `4063.T`). It must be listed in `stock-daily/symbols.json`.
-- `view`: `chart`, `info` or `both` (default `both`)
+- `view`: `chart`, `info`, `both` or `fundamentals` (default `both`). `fundamentals` shows the
+  saved Yahoo snapshot: valuation, margins, growth, cash and debt, dividend and analyst view.
 - `range`: tab opened first: `1m` `3m` `6m` `ytd` `1y` `2y` `3y` `5y` (default `1y`)
 - `theme`: `light` or `dark` (default `light`)
 
