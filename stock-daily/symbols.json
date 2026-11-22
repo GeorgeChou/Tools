@@ -107,5 +107,8 @@
   {"symbol": "603986.SS", "name": "GigaDevice Semiconductor", "localName": "兆易创新"},
   {"symbol": "688766.SS", "name": "Puya Semiconductor", "localName": "普冉半导体"},
   {"symbol": "IFX.DE", "name": "Infineon Technologies", "localName": ""},
-  {"symbol": "0050.TW", "name": "Yuanta Taiwan Top 50 ETF", "localName": "元大台灣50", "kind": "etf"}
+  {"symbol": "0050.TW", "name": "Yuanta Taiwan Top 50 ETF", "localName": "元大台灣50", "kind": "etf"},
+  {"symbol": "00980A.TW", "name": "Nomura Taiwan Smart Select Active ETF", "localName": "主動野村臺灣優選", "kind": "etf"},
+  {"symbol": "00990A.TW", "name": "Yuanta Global AI New Economy Active ETF", "localName": "主動元大AI新經濟", "kind": "etf"},
+  {"symbol": "00985A.TW", "name": "Nomura Taiwan Enhanced 50 Active ETF", "localName": "主動野村台灣50", "kind": "etf"}
 ]
