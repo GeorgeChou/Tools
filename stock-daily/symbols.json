@@ -106,5 +106,6 @@
   {"symbol": "^NDX", "name": "Nasdaq-100 Index", "localName": "", "kind": "index"},
   {"symbol": "603986.SS", "name": "GigaDevice Semiconductor", "localName": "兆易创新"},
   {"symbol": "688766.SS", "name": "Puya Semiconductor", "localName": "普冉半导体"},
-  {"symbol": "IFX.DE", "name": "Infineon Technologies", "localName": ""}
+  {"symbol": "IFX.DE", "name": "Infineon Technologies", "localName": ""},
+  {"symbol": "0050.TW", "name": "Yuanta Taiwan Top 50 ETF", "localName": "元大台灣50", "kind": "etf"}
 ]
